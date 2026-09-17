@@ -1,0 +1,75 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --color-bg: #f6de4b;
+  --color-bg-deep: #e8c42a;
+  --color-surface: #fff6c8;
+  --color-surface-2: #ffe98a;
+  --color-ink: #1a1408;
+  --color-muted: #5c4e2a;
+  --color-logo: #1b8a3e;
+  --color-logo-dark: #0f6b2c;
+  --color-logo-fg: #f6de4b;
+  --color-adult: #8b1e3f;
+  --color-adult-fg: #fff6c8;
+  --color-border: #c9a227;
+  --color-ring: #1b8a3e;
+  --font-display: "Lilita One", Impact, "Arial Black", sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+.stage-spot {
+  background:
+    radial-gradient(ellipse 80% 48% at 50% -8%, #fff8d4 0%, transparent 58%),
+    var(--color-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
