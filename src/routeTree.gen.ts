@@ -13,10 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CrawlRouteImport } from './routes/crawl'
+import { Route as JokesterRouteImport } from './routes/jokester'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as VaultRouteImport } from './routes/vault'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ApiCrawlRouteImport } from './routes/api/crawl'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiPaypalWebhookRouteImport } from './routes/api/paypal/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -38,6 +41,11 @@ const CrawlRoute = CrawlRouteImport.update({
   path: '/crawl',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JokesterRoute = JokesterRouteImport.update({
+  id: '/jokester',
+  path: '/jokester',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -46,6 +54,11 @@ const LoginRoute = LoginRouteImport.update({
 const VaultRoute = VaultRouteImport.update({
   id: '/vault',
   path: '/vault',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCrawlRoute = ApiCrawlRouteImport.update({
@@ -58,26 +71,37 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPaypalWebhookRoute = ApiPaypalWebhookRouteImport.update({
+  id: '/api/paypal/webhook',
+  path: '/api/paypal/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/crawl': typeof CrawlRoute
+  '/jokester': typeof JokesterRoute
   '/login': typeof LoginRoute
   '/vault': typeof VaultRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/api/crawl': typeof ApiCrawlRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/paypal/webhook': typeof ApiPaypalWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/crawl': typeof CrawlRoute
+  '/jokester': typeof JokesterRoute
   '/login': typeof LoginRoute
   '/vault': typeof VaultRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/api/crawl': typeof ApiCrawlRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/paypal/webhook': typeof ApiPaypalWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,10 +109,13 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/crawl': typeof CrawlRoute
+  '/jokester': typeof JokesterRoute
   '/login': typeof LoginRoute
   '/vault': typeof VaultRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/api/crawl': typeof ApiCrawlRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/paypal/webhook': typeof ApiPaypalWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,30 +124,39 @@ export interface FileRouteTypes {
     | '/account'
     | '/admin'
     | '/crawl'
+    | '/jokester'
     | '/login'
     | '/vault'
+    | '/verify-email'
     | '/api/crawl'
     | '/api/auth/$'
+    | '/api/paypal/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/account'
     | '/admin'
     | '/crawl'
+    | '/jokester'
     | '/login'
     | '/vault'
+    | '/verify-email'
     | '/api/crawl'
     | '/api/auth/$'
+    | '/api/paypal/webhook'
   id:
     | '__root__'
     | '/'
     | '/account'
     | '/admin'
     | '/crawl'
+    | '/jokester'
     | '/login'
     | '/vault'
+    | '/verify-email'
     | '/api/crawl'
     | '/api/auth/$'
+    | '/api/paypal/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -128,10 +164,13 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRoute
   CrawlRoute: typeof CrawlRoute
+  JokesterRoute: typeof JokesterRoute
   LoginRoute: typeof LoginRoute
   VaultRoute: typeof VaultRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   ApiCrawlRoute: typeof ApiCrawlRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiPaypalWebhookRoute: typeof ApiPaypalWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -164,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrawlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/jokester': {
+      id: '/jokester'
+      path: '/jokester'
+      fullPath: '/jokester'
+      preLoaderRoute: typeof JokesterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -176,6 +222,13 @@ declare module '@tanstack/react-router' {
       path: '/vault'
       fullPath: '/vault'
       preLoaderRoute: typeof VaultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/crawl': {
@@ -192,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/paypal/webhook': {
+      id: '/api/paypal/webhook'
+      path: '/api/paypal/webhook'
+      fullPath: '/api/paypal/webhook'
+      preLoaderRoute: typeof ApiPaypalWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -200,10 +260,13 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   AdminRoute: AdminRoute,
   CrawlRoute: CrawlRoute,
+  JokesterRoute: JokesterRoute,
   LoginRoute: LoginRoute,
   VaultRoute: VaultRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   ApiCrawlRoute: ApiCrawlRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiPaypalWebhookRoute: ApiPaypalWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

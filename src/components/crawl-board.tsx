@@ -19,13 +19,15 @@ export function CrawlBoard() {
     setStats(vault);
   }
 
+  const filling = Boolean(stats && !stats.catalogLoaded);
+
   useEffect(() => {
     void refresh();
     const id = window.setInterval(() => {
       void refresh();
-    }, 20_000);
+    }, filling ? 4000 : 20_000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [filling]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -64,8 +66,9 @@ export function CrawlBoard() {
         <div>
           <h1 className="font-display text-4xl sm:text-5xl">The Crawler</h1>
           <p className="mt-2 max-w-xl text-muted text-pretty">
-            Always hunting. Public joke APIs, forums, and late-show threads get swept into the vault.
-            Duplicates get hashed out. Adult finds stay locked until the ID rope.
+            Open catalogs first — taivop's 200k dump, SocialGrep's million r/Jokes posts, amoudgl
+            short jokes, Wocka, StupidStuff — then live APIs keep the room fresh. Duplicates get
+            hashed out. Adult finds stay locked until the ID rope.
           </p>
         </div>
         <Button onClick={() => void run()} disabled={busy}>
@@ -75,12 +78,18 @@ export function CrawlBoard() {
       </header>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tile label="Jokes in vault" value={stats?.total ?? "—"} />
-        <Tile label="Clean" value={stats?.clean ?? "—"} />
-        <Tile label="Late show" value={stats?.adult ?? "—"} />
-        <Tile label="Sources" value={stats?.sources ?? "—"} />
+        <Tile label="Jokes in vault" value={stats ? stats.total.toLocaleString() : "—"} />
+        <Tile label="Clean" value={stats ? stats.clean.toLocaleString() : "—"} />
+        <Tile label="Late show" value={stats ? stats.adult.toLocaleString() : "—"} />
+        <Tile label="Catalog" value={stats ? `${Math.min(100, Math.round((stats.total / Math.max(1, stats.catalogSize)) * 100))}%` : "—"} />
       </dl>
       {note ? <p className="text-sm text-logo-dark">{note}</p> : null}
+      {filling ? (
+        <p className="text-sm text-muted">
+          Pouring the open dumps into the vault — {stats?.total.toLocaleString()} of{" "}
+          {stats?.catalogSize.toLocaleString()} unique bits so far.
+        </p>
+      ) : null}
 
       <section>
         <h2 className="font-display text-2xl">Live sources</h2>
@@ -102,14 +111,24 @@ export function CrawlBoard() {
               <p
                 className={cn(
                   "text-sm font-medium",
-                  s.lastStatus === "ok" ? "text-logo-dark" : s.lastStatus === "error" ? "text-adult" : "text-muted",
+                  s.lastStatus === "ok"
+                    ? "text-logo-dark"
+                    : s.lastStatus === "error"
+                      ? "text-adult"
+                      : s.lastStatus === "loading"
+                        ? "text-logo-dark"
+                        : "text-muted",
                 )}
               >
                 {s.lastStatus === "ok"
-                  ? "Live"
+                  ? s.name.startsWith("Catalog:")
+                    ? "Archived"
+                    : "Live"
                   : s.lastStatus === "error"
                     ? s.lastError || "Missed"
-                    : "Waiting"}
+                    : s.lastStatus === "loading"
+                      ? "Pouring in"
+                      : "Waiting"}
               </p>
             </li>
           ))}

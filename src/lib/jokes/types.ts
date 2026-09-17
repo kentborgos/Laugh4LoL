@@ -10,6 +10,7 @@ export type Joke = {
   sourceName: string;
   sourceUrl: string;
   createdAt: string;
+  score: number;
 };
 
 export type ChatTurn = {
@@ -44,4 +45,6 @@ export type VaultStats = {
   adult: number;
   sources: number;
   lastCrawl: string | null;
+  catalogSize: number;
+  catalogLoaded: boolean;
 };

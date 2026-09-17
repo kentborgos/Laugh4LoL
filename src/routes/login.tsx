@@ -5,6 +5,7 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getPublicPricing } from "@/lib/jokes/billing";
+import { requestVerificationEmail } from "@/lib/jokes/email";
 import { dollars } from "@/lib/jokes/money";
 
 export const Route = createFileRoute("/login")({ component: Login });
@@ -43,12 +44,20 @@ function Login() {
           setError(res.error.message || "Could not open that tab.");
           return;
         }
-      } else {
-        const res = await authClient.signIn.email({ email, password });
-        if (res.error) {
-          setError(res.error.message || "Email or password didn't land.");
-          return;
+        try {
+          await authClient.getSession();
+          const verify = await requestVerificationEmail();
+          const token = verify.previewUrl ? new URL(verify.previewUrl).searchParams.get("token") : null;
+          await navigate({ to: "/verify-email", search: token ? { token } : {} });
+        } catch {
+          await navigate({ to: "/verify-email", search: {} });
         }
+        return;
+      }
+      const res = await authClient.signIn.email({ email, password });
+      if (res.error) {
+        setError(res.error.message || "Email or password didn't land.");
+        return;
       }
       await navigate({ to: "/" });
     } catch {
@@ -75,7 +84,7 @@ function Login() {
         <h1 className="font-display text-3xl">Pull up a chair</h1>
         <p className="mt-2 text-sm text-muted text-pretty">
           Free tab: {pricing ? `${pricing.freeDailyAi} AI chats a day` : "a few chats a day"} with Jester Bones.
-          Paid seats {pricing ? `from $${dollars(pricing.monthlyPriceCents)}/mo or $${dollars(pricing.annualPriceCents)}/yr` : "are posted on your tab"}.
+          Paid seats {pricing ? `from $${dollars(pricing.monthlyPriceCents)}/mo or $${dollars(pricing.annualPriceCents)}/yr` : "are posted on your tab"} via PayPal after a Resend email confirm.
           House admin signs in with email and password.
         </p>
 

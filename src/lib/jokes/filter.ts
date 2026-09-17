@@ -2,10 +2,13 @@ const MINOR_RE =
   /\b(child|children|kid|kids|preteen|underage|minor|minors|toddler|infant|schoolgirl|schoolboy|little boy|little girl)\b/i;
 
 const GRAPHIC_RE =
-  /\b(bestiality|snuff|csam|child porn)\b/i;
+  /\b(bestiality|snuff|csam|child porn|rape(?:d|s|ist)?|lynch(?:ing|ed)?|holocaust)\b/i;
+
+const SLUR_RE =
+  /\b(nigger|nigga|faggot|tranny|kike|spic|chink|wetback|retard(?:ed)?)\b/i;
 
 export function isUnsafeJoke(text: string, rating: "clean" | "adult") {
-  if (GRAPHIC_RE.test(text)) return true;
+  if (GRAPHIC_RE.test(text) || SLUR_RE.test(text)) return true;
   if (rating === "adult" && MINOR_RE.test(text)) return true;
   return false;
 }
@@ -13,6 +16,11 @@ export function isUnsafeJoke(text: string, rating: "clean" | "adult") {
 export function splitJoke(text: string): { setup: string; punchline: string; body: string } {
   const cleaned = text.replace(/\r/g, "").trim();
   if (!cleaned) return { setup: "", punchline: "", body: "" };
+
+  const qa = /^[Qq]:\s*([\s\S]+?)\s*[Aa]:\s*([\s\S]+)$/.exec(cleaned);
+  if (qa?.[1] && qa[2]) {
+    return { setup: qa[1].trim(), punchline: qa[2].trim(), body: cleaned };
+  }
 
   const qSplit = cleaned.split(/\?\s+/);
   if (qSplit.length === 2 && qSplit[0] && qSplit[1] && qSplit[0].length < 220) {

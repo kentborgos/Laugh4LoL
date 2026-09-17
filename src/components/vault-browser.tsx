@@ -8,6 +8,8 @@ import { useAge } from "@/lib/jokes/age-store";
 import type { Joke } from "@/lib/jokes/types";
 import { cn } from "@/lib/utils";
 
+const PAGE = 36;
+
 export function VaultBrowser() {
   const { token, adult } = useAge();
   const [q, setQ] = useState("");
@@ -16,6 +18,7 @@ export function VaultBrowser() {
   const [rating, setRating] = useState<"all" | "clean" | "adult">("all");
   const [jokes, setJokes] = useState<Joke[]>([]);
   const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [cats, setCats] = useState<{ category: string; n: number }[]>([]);
   const [busy, setBusy] = useState(true);
   const [gateOpen, setGateOpen] = useState(false);
@@ -26,8 +29,12 @@ export function VaultBrowser() {
   }, [q]);
 
   useEffect(() => {
+    setOffset(0);
+  }, [debounced, category, rating, token, adult]);
+
+  useEffect(() => {
     void listCategories().then(setCats);
-  }, []);
+  }, [total]);
 
   useEffect(() => {
     let live = true;
@@ -38,13 +45,13 @@ export function VaultBrowser() {
         category,
         rating: adult ? rating : "clean",
         token: token ?? undefined,
-        offset: 0,
-        limit: 36,
+        offset,
+        limit: PAGE,
       },
     })
       .then((res) => {
         if (!live) return;
-        setJokes(res.jokes);
+        setJokes((prev) => (offset === 0 ? res.jokes : [...prev, ...res.jokes]));
         setTotal(res.total);
       })
       .finally(() => {
@@ -53,17 +60,19 @@ export function VaultBrowser() {
     return () => {
       live = false;
     };
-  }, [debounced, category, rating, token, adult]);
+  }, [debounced, category, rating, token, adult, offset]);
 
-  const shownCats = useMemo(() => cats.slice(0, 14), [cats]);
+  const shownCats = useMemo(() => cats.slice(0, 16), [cats]);
+  const canMore = jokes.length < total;
 
   return (
     <div className="grid gap-6">
       <header className="grid gap-2">
         <h1 className="font-display text-4xl sm:text-5xl">The Vault</h1>
         <p className="max-w-2xl text-muted text-pretty">
-          A living joke database. The crawler keeps pulling clean and late-show bits from public
-          APIs and forums. {total.toLocaleString()} bits on the floor
+          Forty-five thousand bits poured in from the world's biggest open joke dumps — r/Jokes,
+          Wocka, StupidStuff, dad jokes, Official Joke API, JokeAPI — plus a live crawler that keeps
+          hunting. {total.toLocaleString()} on the floor
           {adult ? "" : " — adult cards stay locked until you pass the ID rope"}.
         </p>
       </header>
@@ -140,10 +149,23 @@ export function VaultBrowser() {
             ) : (
               <p className="text-pretty">{joke.body}</p>
             )}
-            <p className="mt-3 truncate text-xs text-muted">{joke.sourceName}</p>
+            <p className="mt-3 flex items-center justify-between gap-2 text-xs text-muted">
+              <span className="truncate">{joke.sourceName}</span>
+              {joke.score > 10 ? <span className="shrink-0 tabular-nums">▲ {joke.score.toLocaleString()}</span> : null}
+            </p>
           </li>
         ))}
       </ul>
+      {canMore ? (
+        <Button
+          variant="outline"
+          className="justify-self-start"
+          disabled={busy}
+          onClick={() => setOffset((n) => n + PAGE)}
+        >
+          {busy ? "Loading…" : "Load more bits"}
+        </Button>
+      ) : null}
       {!busy && !jokes.length ? (
         <p className="text-muted">No bits matched. The crawler might still be warming the room.</p>
       ) : null}

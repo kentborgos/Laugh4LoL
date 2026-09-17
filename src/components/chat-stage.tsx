@@ -14,9 +14,9 @@ import type { Membership } from "@/lib/jokes/billing.server";
 import { cn } from "@/lib/utils";
 
 const GREET_CLEAN =
-  "Name's Jester Bones. Skull, cigar, green hat — house comic for Laugh4.LoL. The vault's filling itself from the web while we talk. Hit me with a topic, a roast request, or just say 'hit me.' We could all use a little laugh.";
+  "Name's Jester Bones. Skull, cigar, green hat — house comic for Laugh4.LoL. The vault's packed with tens of thousands of open-source bits. Hit me with a topic, a roast request, or just say 'hit me.' We could all use a little laugh.";
 const GREET_ADULT =
-  "Late show's open. I'm Jester Bones — same skull, hotter material. Dirty jokes are on the table. Keep it adult, keep it funny. What did you laugh for?";
+  "Late show's open. I'm Jester Bones — same skull, hotter material. Dirty jokes are on the table, and the vault's huge. Keep it adult, keep it funny. What did you laugh for?";
 
 export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }) {
   const { token, adult, ready } = useAge();
@@ -33,6 +33,13 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
 
   useEffect(() => {
     void getVaultStats().then(setStats);
+    const id = window.setInterval(() => {
+      void getVaultStats().then((next) => {
+        setStats(next);
+        if (next.catalogLoaded) window.clearInterval(id);
+      });
+    }, 5000);
+    return () => window.clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -121,9 +128,9 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
           House comic. Free tab is a short set. Paid seats get a longer night.
         </p>
         <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <Stat label="Vault" value={stats?.total ?? "—"} />
-          <Stat label="Clean" value={stats?.clean ?? "—"} />
-          <Stat label="Late" value={adult ? (stats?.adult ?? "—") : "18+"} />
+          <Stat label="Vault" value={stats?.total.toLocaleString() ?? "—"} />
+          <Stat label="Clean" value={stats?.clean.toLocaleString() ?? "—"} />
+          <Stat label="Late" value={adult ? (stats?.adult.toLocaleString() ?? "—") : "18+"} />
         </dl>
         {membership ? (
           <p className="mt-3 text-center text-xs text-muted">
@@ -141,6 +148,14 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         ) : signedOut && pricing ? (
           <p className="mt-3 text-center text-xs text-muted">
             Free tab: {pricing.freeDailyAi} AI chats/day · seats from ${dollars(pricing.monthlyPriceCents)}/mo
+          </p>
+        ) : null}
+        {membership && !membership.emailVerified ? (
+          <p className="mt-2 text-center text-xs text-pretty">
+            <Link to="/verify-email" className="font-medium text-logo-dark underline-offset-4 hover:underline">
+              Confirm your email
+            </Link>{" "}
+            before a PayPal seat.
           </p>
         ) : null}
         <Button className="mt-4 w-full" variant="outline" onClick={() => (adult ? undefined : setGateOpen(true))}>

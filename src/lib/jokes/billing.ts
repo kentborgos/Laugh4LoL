@@ -5,9 +5,12 @@ import {
   adminOverview,
   loadMembership,
   loadSettings,
+  requireAdmin,
   savePrices,
-  startPlan,
 } from "./billing.server";
+import { keysStatus, loadHouseKeys, mask, writeHouseKeys } from "./keys.server";
+import { sendAdminTestEmail } from "./email.server";
+import { pingPaypal } from "./paypal.server";
 
 export const getPublicPricing = createServerFn({ method: "GET" }).handler(async () => {
   const s = await loadSettings();
@@ -22,11 +25,6 @@ export const getPublicPricing = createServerFn({ method: "GET" }).handler(async 
 export const getMembership = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => loadMembership(context.userId));
-
-export const subscribePlan = createServerFn({ method: "POST" })
-  .validator((input: unknown) => z.object({ plan: z.enum(["monthly", "annual"]) }).parse(input))
-  .middleware([authMiddleware])
-  .handler(async ({ context, data }) => startPlan(context.userId, data.plan));
 
 export const getAdminOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -46,3 +44,48 @@ export const updateSitePrices = createServerFn({ method: "POST" })
   )
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => savePrices(context.userId, data));
+
+export const getHouseKeys = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.userId);
+    const settings = await loadSettings();
+    const keys = await loadHouseKeys();
+    return {
+      adminEmail: settings.adminEmail,
+      ...keysStatus(keys),
+      resendFromEmail: keys.resendFromEmail,
+      paypalWebhookIdHint: mask(keys.paypalWebhookId),
+      envOverrides: {
+        resend: Boolean(process.env.RESEND_API_KEY?.trim()),
+        paypal: Boolean(process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim()),
+      },
+    };
+  });
+
+export const saveHouseKeys = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({
+        resendApiKey: z.string().max(200).optional(),
+        resendFromEmail: z.string().max(180).optional(),
+        paypalClientId: z.string().max(200).optional(),
+        paypalClientSecret: z.string().max(200).optional(),
+        paypalMode: z.enum(["sandbox", "live"]).optional(),
+        paypalWebhookId: z.string().max(200).optional(),
+      })
+      .parse(input),
+  )
+  .middleware([authMiddleware])
+  .handler(async ({ context, data }) => {
+    await requireAdmin(context.userId);
+    return writeHouseKeys(data);
+  });
+
+export const testResendKey = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => sendAdminTestEmail(context.userId));
+
+export const testPaypalKey = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => pingPaypal(context.userId));

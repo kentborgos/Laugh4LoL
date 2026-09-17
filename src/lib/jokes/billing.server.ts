@@ -1,4 +1,5 @@
 import { getSql } from "@/lib/db";
+import { keysStatus, loadHouseKeys } from "./keys.server";
 import { dollars } from "./money";
 
 export { dollars };
@@ -25,6 +26,11 @@ export type Membership = {
   annualPriceCents: number;
   adminEmail: string;
   usedToday: number;
+  email: string;
+  emailVerified: boolean;
+  paypalReady: boolean;
+  resendReady: boolean;
+  paypalMode: "sandbox" | "live";
 };
 
 function todayUtc() {
@@ -62,6 +68,28 @@ export async function userEmail(userId: string): Promise<string | null> {
   return rows[0]?.email ?? null;
 }
 
+export async function markEmailVerified(userId: string) {
+  const sql = await getSql();
+  await sql`update profiles set email_verified = true where user_id = ${userId}`;
+  await sql`update "user" set "emailVerified" = true, "updatedAt" = now() where id = ${userId}`;
+}
+
+export async function isEmailVerified(userId: string): Promise<boolean> {
+  const sql = await getSql();
+  const profile = await sql<{ email_verified: boolean }>`
+    select email_verified from profiles where user_id = ${userId}
+  `;
+  if (profile[0]?.email_verified) return true;
+  const user = await sql<{ emailVerified: boolean }>`
+    select "emailVerified" as "emailVerified" from "user" where id = ${userId}
+  `;
+  if (user[0]?.emailVerified) {
+    await markEmailVerified(userId);
+    return true;
+  }
+  return false;
+}
+
 export async function ensureMember(userId: string): Promise<{ role: "member" | "admin"; email: string }> {
   const sql = await getSql();
   const settings = await loadSettings();
@@ -76,6 +104,7 @@ export async function ensureMember(userId: string): Promise<{ role: "member" | "
     }
     if (emailMatch && existing[0].role !== "admin") {
       await sql`update profiles set role = ${"admin"} where user_id = ${userId}`;
+      await markEmailVerified(userId);
       return { role: "admin", email: email || existing[0].email };
     }
     return { role: existing[0].role, email: email || existing[0].email };
@@ -84,12 +113,11 @@ export async function ensureMember(userId: string): Promise<{ role: "member" | "
   const adminCount = await sql<{ n: number }>`
     select count(*)::int as n from profiles where role = ${"admin"}
   `;
-  // Bootstrap: first house account, or the configured admin email, runs backstage.
   const role: "member" | "admin" = emailMatch || (adminCount[0]?.n ?? 0) === 0 ? "admin" : "member";
 
   await sql`
-    insert into profiles (user_id, email, role)
-    values (${userId}, ${email}, ${role})
+    insert into profiles (user_id, email, role, email_verified)
+    values (${userId}, ${email}, ${role}, ${role === "admin"})
     on conflict (user_id) do nothing
   `;
   await sql`
@@ -97,6 +125,7 @@ export async function ensureMember(userId: string): Promise<{ role: "member" | "
     values (${userId}, ${"free"}, ${"active"}, 0)
     on conflict (user_id) do nothing
   `;
+  if (role === "admin") await markEmailVerified(userId);
   return { role, email };
 }
 
@@ -111,6 +140,7 @@ export async function loadMembership(userId: string): Promise<Membership> {
   const sql = await getSql();
   const profile = await ensureMember(userId);
   const settings = await loadSettings();
+  const keys = keysStatus(await loadHouseKeys());
   const sub = await sql<{
     plan: Plan;
     status: string;
@@ -125,6 +155,7 @@ export async function loadMembership(userId: string): Promise<Membership> {
     select count from ai_usage where user_id = ${userId} and day = ${todayUtc()}::date
   `;
   const usedToday = used[0]?.count ?? 0;
+  const emailVerified = profile.role === "admin" ? true : await isEmailVerified(userId);
   return {
     plan: paid ? plan : "free",
     paid,
@@ -137,6 +168,11 @@ export async function loadMembership(userId: string): Promise<Membership> {
     annualPriceCents: settings.annualPriceCents,
     adminEmail: settings.adminEmail,
     usedToday,
+    email: profile.email,
+    emailVerified,
+    paypalReady: keys.paypalReady,
+    resendReady: keys.resendReady,
+    paypalMode: keys.paypalMode,
   };
 }
 
@@ -223,6 +259,7 @@ export async function adminOverview(userId: string) {
   await requireAdmin(userId);
   const sql = await getSql();
   const settings = await loadSettings();
+  const keys = keysStatus(await loadHouseKeys());
   const counts = await sql<{
     members: number;
     paid: number;
@@ -238,5 +275,7 @@ export async function adminOverview(userId: string) {
     members: counts[0]?.members ?? 0,
     paid: counts[0]?.paid ?? 0,
     chatsToday: counts[0]?.chats_today ?? 0,
+    resendReady: keys.resendReady,
+    paypalReady: keys.paypalReady,
   };
 }

@@ -4,7 +4,8 @@ import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { readAgeToken } from "./age-token";
 import { verifyAge, type AgeInput } from "./age.server";
-import { maybeCrawl, runCrawl, seedIfEmpty } from "./crawl.server";
+import { importOpenCatalog, maybeCrawl, runCrawl, seedIfEmpty } from "./crawl.server";
+import { CATALOG_META } from "./catalog";
 import { riffWithGrok } from "./comedian.server";
 import { consumeAiQuota } from "./billing.server";
 import type { CrawlRun, CrawlSource, Joke, VaultStats } from "./types";
@@ -23,6 +24,7 @@ function mapJoke(row: {
   source_name: string;
   source_url: string;
   created_at: string;
+  score?: number;
 }): Joke {
   return {
     id: row.id,
@@ -34,11 +36,13 @@ function mapJoke(row: {
     sourceName: row.source_name,
     sourceUrl: row.source_url,
     createdAt: row.created_at,
+    score: row.score ?? 0,
   };
 }
 
 export const getVaultStats = createServerFn({ method: "GET" }).handler(async (): Promise<VaultStats> => {
   await seedIfEmpty();
+  void importOpenCatalog();
   void maybeCrawl();
   const sql = await getSql();
   const counts = await sql<{ total: number; clean: number; adult: number }>`
@@ -52,12 +56,15 @@ export const getVaultStats = createServerFn({ method: "GET" }).handler(async ():
   const last = await sql<{ finished_at: string | null }>`
     select finished_at from crawl_runs where status = ${"ok"} order by id desc limit 1
   `;
+  const total = counts[0]?.total ?? 0;
   return {
-    total: counts[0]?.total ?? 0,
+    total,
     clean: counts[0]?.clean ?? 0,
     adult: counts[0]?.adult ?? 0,
     sources: sources[0]?.n ?? 0,
     lastCrawl: last[0]?.finished_at ?? null,
+    catalogSize: CATALOG_META.count,
+    catalogLoaded: total >= Math.min(8000, CATALOG_META.count / 4),
   };
 });
 
@@ -66,7 +73,7 @@ const listInput = z.object({
   category: z.string().max(40).optional().default(""),
   rating: z.enum(["clean", "adult", "all"]).optional().default("all"),
   token: z.string().max(200).optional(),
-  offset: z.number().int().min(0).max(5000).optional().default(0),
+  offset: z.number().int().min(0).max(40000).optional().default(0),
   limit: z.number().int().min(1).max(48).optional().default(24),
 });
 
@@ -74,6 +81,7 @@ export const listJokes = createServerFn({ method: "POST" })
   .validator((input: unknown) => listInput.parse(input))
   .handler(async ({ data }): Promise<{ jokes: Joke[]; total: number; adultUnlocked: boolean }> => {
     await seedIfEmpty();
+    void importOpenCatalog();
     const sql = await getSql();
     const adultUnlocked = isAdult(data.token);
     const q = data.q.trim();
@@ -92,15 +100,21 @@ export const listJokes = createServerFn({ method: "POST" })
       source_name: string;
       source_url: string;
       created_at: string;
+      score: number;
       full_count: number;
     }>`
-      select id, setup, punchline, body, rating, category, source_name, source_url, created_at,
+      select id, setup, punchline, body, rating, category, source_name, source_url, created_at, score,
              count(*) over()::int as full_count
       from jokes
       where (${ratingFilter}::text is null or rating = ${ratingFilter})
         and (${cat} = '' or category = ${cat})
         and (${q} = '' or body ilike ${like} or setup ilike ${like} or punchline ilike ${like})
-      order by created_at desc, id desc
+      order by
+        case
+          when source_name in ('Official Joke API', 'icanhazdadjoke', 'Laugh4.LoL seed', 'JokeAPI') then score + 500
+          else score
+        end desc,
+        id desc
       limit ${data.limit} offset ${data.offset}
     `;
 
@@ -139,7 +153,8 @@ export const randomJoke = createServerFn({ method: "POST" })
           source_name: string;
           source_url: string;
           created_at: string;
-        }>`select id, setup, punchline, body, rating, category, source_name, source_url, created_at from jokes order by random() limit 1`
+          score: number;
+        }>`select id, setup, punchline, body, rating, category, source_name, source_url, created_at, score from jokes order by ln(2 + score) * random() desc limit 1`
       : await sql<{
           id: number;
           setup: string;
@@ -150,7 +165,8 @@ export const randomJoke = createServerFn({ method: "POST" })
           source_name: string;
           source_url: string;
           created_at: string;
-        }>`select id, setup, punchline, body, rating, category, source_name, source_url, created_at from jokes where rating = ${"clean"} order by random() limit 1`;
+          score: number;
+        }>`select id, setup, punchline, body, rating, category, source_name, source_url, created_at, score from jokes where rating = ${"clean"} order by ln(2 + score) * random() desc limit 1`;
     return rows[0] ? mapJoke(rows[0]) : null;
   });
 
@@ -216,10 +232,15 @@ export const verifyGuestAge = createServerFn({ method: "POST" })
 
 export const crawlNow = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ force: z.boolean().optional() }).parse(input ?? {}))
-  .handler(async ({ data }) => runCrawl(Boolean(data.force)));
+  .handler(async ({ data }) => {
+    await seedIfEmpty();
+    void importOpenCatalog();
+    return runCrawl(Boolean(data.force));
+  });
 
 export const getCrawlBoard = createServerFn({ method: "GET" }).handler(async () => {
   await seedIfEmpty();
+  void importOpenCatalog();
   const sql = await getSql();
   const sources = await sql<{
     id: number;

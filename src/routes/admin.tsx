@@ -33,7 +33,13 @@ function AdminBody() {
   const [freeAi, setFreeAi] = useState("5");
   const [paidAi, setPaidAi] = useState("80");
   const [adminEmail, setAdminEmail] = useState("");
-  const [stats, setStats] = useState<{ members: number; paid: number; chatsToday: number } | null>(null);
+  const [stats, setStats] = useState<{
+    members: number;
+    paid: number;
+    chatsToday: number;
+    resendReady: boolean;
+    paypalReady: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -47,7 +53,13 @@ function AdminBody() {
         setFreeAi(String(data.settings.freeDailyAi));
         setPaidAi(String(data.settings.paidDailyAi));
         setAdminEmail(data.settings.adminEmail);
-        setStats({ members: data.members, paid: data.paid, chatsToday: data.chatsToday });
+        setStats({
+          members: data.members,
+          paid: data.paid,
+          chatsToday: data.chatsToday,
+          resendReady: data.resendReady,
+          paypalReady: data.paypalReady,
+        });
       })
       .catch(() => setForbidden(true));
   }, []);
@@ -104,16 +116,18 @@ function AdminBody() {
       <header>
         <h1 className="font-display text-4xl sm:text-5xl">House admin</h1>
         <p className="mt-2 text-muted text-pretty">
-          Set what a seat costs. Free tabs keep a short daily chat with Jester Bones. Email and
-          password run this backstage.
+          Set what a seat costs. Free tabs keep a short daily chat with Jester Bones. Paste Resend and
+          PayPal keys at /jokester.
         </p>
       </header>
 
       {stats ? (
-        <dl className="grid grid-cols-3 gap-3">
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <Tile label="Members" value={stats.members} />
           <Tile label="Paid" value={stats.paid} />
           <Tile label="Chats today" value={stats.chatsToday} />
+          <Tile label="Resend" value={stats.resendReady ? "On" : "Off"} />
+          <Tile label="PayPal" value={stats.paypalReady ? "On" : "Off"} />
         </dl>
       ) : null}
 
@@ -150,11 +164,16 @@ function AdminBody() {
           {busy ? "Saving…" : "Save prices"}
         </Button>
       </form>
+      <p>
+        <Link to="/jokester" className="font-medium text-logo-dark underline-offset-4 hover:underline">
+          Open /jokester house keys
+        </Link>
+      </p>
     </div>
   );
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function Tile({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-[var(--radius-lg)] border border-border bg-surface px-3 py-3">
       <dt className="text-[0.65rem] font-medium tracking-wide text-muted uppercase">{label}</dt>

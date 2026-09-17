@@ -10,6 +10,7 @@ export function Input({ className, ...props }: React.ComponentProps<"input">) {
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
+      suppressHydrationWarning
       {...props}
     />
   );

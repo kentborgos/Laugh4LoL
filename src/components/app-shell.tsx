@@ -36,12 +36,20 @@ function AuthSlot() {
     return (
       <div className="flex min-w-0 items-center gap-2">
         {isAdmin ? (
-          <Link
-            to="/admin"
-            className="hidden h-9 items-center rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm font-medium sm:inline-flex"
-          >
-            Admin
-          </Link>
+          <>
+            <Link
+              to="/admin"
+              className="hidden h-9 items-center rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm font-medium sm:inline-flex"
+            >
+              Admin
+            </Link>
+            <Link
+              to="/jokester"
+              className="hidden h-9 items-center rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm font-medium lg:inline-flex"
+            >
+              Jokester
+            </Link>
+          </>
         ) : null}
         <div className="max-w-[10rem] min-w-0 truncate text-ink">
           <UserButton />
