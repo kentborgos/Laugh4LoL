@@ -29,7 +29,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
   const [pricing, setPricing] = useState<{ monthlyPriceCents: number; freeDailyAi: number } | null>(null);
   const [messages, setMessages] = useState<ChatTurn[]>([{ role: "assistant", content: GREET_CLEAN }]);
   const scroller = useRef<HTMLDivElement>(null);
-  const greeted = useRef(false);
+  const adultGreeted = useRef(false);
 
   useEffect(() => {
     void getVaultStats().then(setStats);
@@ -54,10 +54,14 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
   }, [isPending, user]);
 
   useEffect(() => {
-    if (!ready || greeted.current) return;
-    greeted.current = true;
-    if (adult) setMessages([{ role: "assistant", content: GREET_ADULT }]);
-  }, [ready, adult]);
+    if (!adult || adultGreeted.current) return;
+    adultGreeted.current = true;
+    setMessages((m) => {
+      const rest = m.filter((t) => t.content !== GREET_CLEAN);
+      if (rest[0]?.content === GREET_ADULT) return rest;
+      return [{ role: "assistant", content: GREET_ADULT }, ...rest];
+    });
+  }, [adult]);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
