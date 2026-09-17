@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { chatWithJester, getVaultStats, randomJoke } from "@/lib/jokes/server";
+import { getMembership, getPublicPricing } from "@/lib/jokes/billing";
+import { dollars } from "@/lib/jokes/money";
 import { useAge } from "@/lib/jokes/age-store";
 import { AgeGate } from "@/components/age-gate";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import type { ChatTurn, VaultStats } from "@/lib/jokes/types";
+import type { Membership } from "@/lib/jokes/billing.server";
 import { cn } from "@/lib/utils";
 
 const GREET_CLEAN =
@@ -15,10 +20,13 @@ const GREET_ADULT =
 
 export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }) {
   const { token, adult, ready } = useAge();
+  const { user, isPending } = useCurrentUserState();
   const [gateOpen, setGateOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<VaultStats | null>(initialStats ?? null);
+  const [membership, setMembership] = useState<Membership | null>(null);
+  const [pricing, setPricing] = useState<{ monthlyPriceCents: number; freeDailyAi: number } | null>(null);
   const [messages, setMessages] = useState<ChatTurn[]>([{ role: "assistant", content: GREET_CLEAN }]);
   const scroller = useRef<HTMLDivElement>(null);
   const greeted = useRef(false);
@@ -26,6 +34,17 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
   useEffect(() => {
     void getVaultStats().then(setStats);
   }, []);
+
+  useEffect(() => {
+    if (isPending || !user) {
+      setMembership(null);
+      void getPublicPricing()
+        .then((p) => setPricing({ monthlyPriceCents: p.monthlyPriceCents, freeDailyAi: p.freeDailyAi }))
+        .catch(() => setPricing(null));
+      return;
+    }
+    void getMembership().then(setMembership).catch(() => setMembership(null));
+  }, [isPending, user]);
 
   useEffect(() => {
     if (!ready || greeted.current) return;
@@ -40,6 +59,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
+    if (!user) return;
     const next: ChatTurn[] = [...messages, { role: "user", content: trimmed }];
     setMessages(next);
     setInput("");
@@ -47,10 +67,23 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
     try {
       const res = await chatWithJester({ data: { messages: next, token: token ?? undefined } });
       setMessages([...next, { role: "assistant", content: res.text }]);
-    } catch {
+      if ("remaining" in res) {
+        setMembership((m) =>
+          m
+            ? { ...m, remainingToday: res.remaining, dailyLimit: res.limit, plan: res.plan as Membership["plan"] }
+            : m,
+        );
+      }
+    } catch (err) {
+      const unauthorized = err instanceof Error && err.message === "Unauthorized";
       setMessages([
         ...next,
-        { role: "assistant", content: "The mic just ate a cigar ash. Say that again?" },
+        {
+          role: "assistant",
+          content: unauthorized
+            ? "Sign in first — free tab is a few chats a day. Vault jokes are still on the house."
+            : "The mic just ate a cigar ash. Say that again?",
+        },
       ]);
     } finally {
       setBusy(false);
@@ -72,6 +105,9 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
     }
   }
 
+  const signedOut = !isPending && !user;
+  const capped = Boolean(membership && membership.remainingToday <= 0);
+
   return (
     <div className="grid min-w-0 gap-6 lg:grid-cols-3 lg:items-start">
       <aside className="relative min-w-0 overflow-hidden rounded-[var(--radius-xl)] border border-border bg-surface p-4">
@@ -82,13 +118,31 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         />
         <p className="mt-3 text-center font-display text-2xl text-logo">Jester Bones</p>
         <p className="mt-1 text-center text-sm text-muted text-pretty">
-          House comic. Clean room by default. Late show after the ID rope.
+          House comic. Free tab is a short set. Paid seats get a longer night.
         </p>
         <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
           <Stat label="Vault" value={stats?.total ?? "—"} />
           <Stat label="Clean" value={stats?.clean ?? "—"} />
           <Stat label="Late" value={adult ? (stats?.adult ?? "—") : "18+"} />
         </dl>
+        {membership ? (
+          <p className="mt-3 text-center text-xs text-muted">
+            {membership.paid ? "Paid seat" : "Free tab"} ·{" "}
+            <span className="tabular-nums">{membership.remainingToday}</span> AI chats left today
+            {capped ? (
+              <>
+                {" · "}
+                <Link to="/account" className="font-medium text-logo-dark underline-offset-4 hover:underline">
+                  Upgrade
+                </Link>
+              </>
+            ) : null}
+          </p>
+        ) : signedOut && pricing ? (
+          <p className="mt-3 text-center text-xs text-muted">
+            Free tab: {pricing.freeDailyAi} AI chats/day · seats from ${dollars(pricing.monthlyPriceCents)}/mo
+          </p>
+        ) : null}
         <Button className="mt-4 w-full" variant="outline" onClick={() => (adult ? undefined : setGateOpen(true))}>
           {adult ? "Late show unlocked" : "Unlock dirty jokes"}
         </Button>
@@ -129,30 +183,55 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
             <p className="pl-12 text-sm text-muted">Jester Bones is lighting the next bit…</p>
           ) : null}
         </div>
-        <form
-          className="flex items-end gap-2 border-t border-border p-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send(input);
-          }}
-        >
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="What did you Laugh For?"
-            rows={2}
-            className="min-h-12 resize-none"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send(input);
-              }
+        {isPending ? (
+          <div className="border-t border-border p-3">
+            <div className="h-12 animate-pulse rounded-[var(--radius-md)] bg-surface-2" />
+          </div>
+        ) : signedOut ? (
+          <div className="flex flex-col gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted text-pretty">
+              Open a free tab — a few AI chats a day. Hit me is always on the house.
+            </p>
+            <Button asChild>
+              <Link to="/login">Sign in</Link>
+            </Button>
+          </div>
+        ) : capped ? (
+          <div className="flex flex-col gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted text-pretty">
+              That's today's free set. Vault and Hit me stay open. A paid seat buys a bigger stack.
+            </p>
+            <Button asChild>
+              <Link to="/account">Upgrade tab</Link>
+            </Button>
+          </div>
+        ) : (
+          <form
+            className="flex items-end gap-2 border-t border-border p-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send(input);
             }}
-          />
-          <Button type="submit" size="icon" disabled={busy || !input.trim()} aria-label="Send">
-            <Send className="size-4" />
-          </Button>
-        </form>
+          >
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="What did you Laugh For?"
+              rows={2}
+              className="min-h-12 resize-none"
+              suppressHydrationWarning
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send(input);
+                }
+              }}
+            />
+            <Button type="submit" size="icon" disabled={busy || !input.trim()} aria-label="Send">
+              <Send className="size-4" />
+            </Button>
+          </form>
+        )}
       </section>
       <AgeGate open={gateOpen} onOpenChange={setGateOpen} />
     </div>

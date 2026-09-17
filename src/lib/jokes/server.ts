@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
+import { authMiddleware } from "@/lib/auth/middleware";
 import { readAgeToken } from "./age-token";
 import { verifyAge, type AgeInput } from "./age.server";
 import { maybeCrawl, runCrawl, seedIfEmpty } from "./crawl.server";
 import { riffWithGrok } from "./comedian.server";
+import { consumeAiQuota } from "./billing.server";
 import type { CrawlRun, CrawlSource, Joke, VaultStats } from "./types";
 
 function isAdult(token?: string | null) {
@@ -168,12 +170,35 @@ export const chatWithJester = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
     await seedIfEmpty();
+    const quota = await consumeAiQuota(context.userId);
+    if (!quota.allowed) {
+      const line = quota.membership.paid
+        ? `You've burned today's ${quota.membership.dailyLimit} late-show chats. Come back tomorrow — or the vault is still open.`
+        : `That's the free tab — ${quota.membership.dailyLimit} chats with Jester Bones a day. Subscribe on the Account page for a bigger set. Hit me still pulls vault jokes for free.`;
+      return {
+        ok: false as const,
+        code: "limit" as const,
+        text: line,
+        adult: isAdult(data.token),
+        remaining: 0,
+        limit: quota.membership.dailyLimit,
+        plan: quota.membership.plan,
+      };
+    }
     const adult = isAdult(data.token);
     const result = await riffWithGrok({ messages: data.messages, adult });
-    if (result.ok) return { ok: true as const, text: result.text, adult };
-    return { ok: true as const, text: result.fallback, adult, notice: result.error };
+    const text = result.ok ? result.text : result.fallback;
+    return {
+      ok: true as const,
+      text,
+      adult,
+      remaining: quota.membership.remainingToday,
+      limit: quota.membership.dailyLimit,
+      plan: quota.membership.plan,
+    };
   });
 
 export const verifyGuestAge = createServerFn({ method: "POST" })
