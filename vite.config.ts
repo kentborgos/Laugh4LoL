@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -46,6 +46,33 @@ function pgliteBootstrapPlugin(): Plugin {
       } catch (err) {
         console.error("[app-builder] DB bootstrap failed:", err);
         throw err;
+      }
+    },
+  };
+}
+
+/**
+ * Nitro inlines @electric-sql/pglite for Vercel but drops the sibling
+ * pglite.data / pglite.wasm / initdb.wasm files. The serverless runtime then
+ * 500s with ENOENT on /var/task/_libs/pglite.data. Copy them next to the
+ * bundled module after the Vercel output is written.
+ */
+function pgliteAssetsPlugin(): Plugin {
+  const files = ["pglite.data", "pglite.wasm", "initdb.wasm"] as const;
+  return {
+    name: "app-builder:pglite-assets",
+    apply: "build",
+    enforce: "post",
+    closeBundle() {
+      const src = join(process.cwd(), "node_modules/@electric-sql/pglite/dist");
+      const dest = join(
+        process.cwd(),
+        ".vercel/output/functions/__server.func/_libs",
+      );
+      if (!files.every((name) => existsSync(join(src, name)))) return;
+      mkdirSync(dest, { recursive: true });
+      for (const name of files) {
+        copyFileSync(join(src, name), join(dest, name));
       }
     },
   };
@@ -159,6 +186,7 @@ export default defineConfig(({ command, isPreview }) => ({
   resolve: { tsconfigPaths: true },
   plugins: [
     pgliteBootstrapPlugin(),
+    pgliteAssetsPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.
     authPopupPlugin(),
     // Dev-only /__app-env, read by scripts/check-auth-invariant.mjs.

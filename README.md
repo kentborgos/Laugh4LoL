@@ -53,6 +53,8 @@ npm run build
 
 Set `DATABASE_URL` on Vercel (Neon). `XAI_API_KEY` powers Jester Bones.
 
+The Vercel function also ships PGLite's `pglite.data` / `.wasm` files so a missing `DATABASE_URL` does not 500 with `ENOENT … /var/task/_libs/pglite.data`. Production still wants Neon — PGLite is an in-memory fallback.
+
 ## Joke database (in the repo)
 
 - Unique vault Jester reads: [`public/jokes/vault.jsonl.gz`](public/jokes/vault.jsonl.gz) — **131,920** hashed bits
