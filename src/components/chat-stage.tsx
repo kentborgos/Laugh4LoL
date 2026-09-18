@@ -162,7 +162,14 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
             before a PayPal seat.
           </p>
         ) : null}
-        <Button className="mt-4 w-full" variant="outline" onClick={() => (adult ? undefined : setGateOpen(true))}>
+        <Button
+          className="mt-4 w-full"
+          variant="outline"
+          onClick={() => {
+            if (!ready || adult) return;
+            setGateOpen(true);
+          }}
+        >
           {adult ? "Late show unlocked" : "Unlock dirty jokes"}
         </Button>
       </aside>

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const PAGE = 36;
 
 export function VaultBrowser() {
-  const { token, adult } = useAge();
+  const { token, adult, ready } = useAge();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [category, setCategory] = useState("");
@@ -95,7 +95,7 @@ export function VaultBrowser() {
               variant={rating === r ? (r === "adult" ? "adult" : "ink") : "outline"}
               onClick={() => {
                 if (r === "adult" && !adult) {
-                  setGateOpen(true);
+                  if (ready) setGateOpen(true);
                   return;
                 }
                 setRating(r);

@@ -24,10 +24,14 @@ function readStored(): { token: string; adult: boolean } | null {
   }
 }
 
+function boot(): Pick<AgeState, "token" | "adult" | "ready"> {
+  if (typeof window === "undefined") return { token: null, adult: false, ready: false };
+  const stored = readStored();
+  return { token: stored?.token ?? null, adult: stored?.adult ?? false, ready: true };
+}
+
 export const useAge = create<AgeState>((set) => ({
-  token: null,
-  adult: false,
-  ready: false,
+  ...boot(),
   hydrate: () => {
     const stored = readStored();
     set({ token: stored?.token ?? null, adult: stored?.adult ?? false, ready: true });

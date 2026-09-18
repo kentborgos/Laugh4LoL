@@ -118,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               variant={adult ? "adult" : "outline"}
               size="sm"
               onClick={() => {
+                if (!ready) return;
                 if (adult) clear();
                 else setGateOpen(true);
               }}
