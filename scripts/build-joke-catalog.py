@@ -12,11 +12,13 @@ from pathlib import Path
 
 RAW = Path("/tmp/joke-raw")
 OUT = Path("/workspace/src/lib/jokes/catalog")
+PUBLIC = Path("/workspace/public/jokes")
 PART_SIZE = 2500
-REDDIT_MIN_SCORE = 250
-REDDIT_CAP = 8000
+REDDIT_MIN_SCORE = 40
+REDDIT_CAP = 45000
 CHUCK_CAP = 900
 REDDIT_MAX_LEN = 900
+CSV_MAX = 60000
 
 ADULT_RE = re.compile(
     r"\b("
@@ -277,21 +279,39 @@ def add_stupidstuff(catlg: Catalog) -> None:
         )
 
 
-def add_csv_dump(catlg: Catalog, name: str, source: str, score: int, rating: str | None = None, category: str = "general") -> None:
+def add_csv_dump(
+    catlg: Catalog,
+    name: str,
+    source: str,
+    score: int,
+    rating: str | None = None,
+    category: str = "general",
+    max_len: int = 500,
+    cap: int = CSV_MAX,
+    url: str = "https://github.com/amoudgl/short-jokes-dataset",
+) -> None:
     path = RAW / name
+    if not path.exists():
+        print(f"  skip missing {name}")
+        return
+    added = 0
     with path.open(newline="", encoding="utf-8", errors="replace") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            joke = row.get("Joke") or row.get("joke") or ""
-            catlg.add(
+            if added >= cap:
+                break
+            joke = row.get("Joke") or row.get("joke") or row.get("text") or ""
+            if catlg.add(
                 joke,
                 source=source,
-                url="https://github.com/amoudgl/short-jokes-dataset",
+                url=url,
                 category=category,
                 score=score,
                 rating=rating,
-                max_len=500,
-            )
+                max_len=max_len,
+            ):
+                added += 1
+    print(f"  {name}: +{added}")
 
 
 def collect_reddit() -> list[tuple[int, str, str, str]]:
@@ -341,7 +361,10 @@ def collect_reddit() -> list[tuple[int, str, str, str]]:
 
 
 def write_parts(rows: list[dict]) -> None:
+    import gzip
+
     OUT.mkdir(parents=True, exist_ok=True)
+    PUBLIC.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob("part-*.jsonl"):
         old.unlink()
     nparts = 0
@@ -359,8 +382,14 @@ def write_parts(rows: list[dict]) -> None:
         "clean": sum(1 for r in rows if r["r"] == "c"),
         "adult": sum(1 for r in rows if r["r"] == "a"),
     }
-    (OUT / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
-    print("meta", meta)
+    payload = json.dumps(meta, indent=2) + "\n"
+    (OUT / "meta.json").write_text(payload)
+    (PUBLIC / "meta.json").write_text(payload)
+    gz = PUBLIC / "vault.jsonl.gz"
+    with gzip.open(gz, "wt", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+    print("meta", meta, "gzip", gz, gz.stat().st_size)
 
 
 def main() -> None:
@@ -377,14 +406,6 @@ def main() -> None:
     add_wocka(catlg)
     print("stupidstuff…")
     add_stupidstuff(catlg)
-    print("short-jokes csvs…")
-    add_csv_dump(catlg, "reddit-cleanjokes.csv", "r/cleanjokes (amoudgl)", 50, rating="clean", category="dad")
-    add_csv_dump(catlg, "onelinefun.csv", "OneLineFun (amoudgl)", 40, category="one-liner")
-    add_csv_dump(catlg, "funjokes.csv", "FunJokes (amoudgl)", 30, category="general")
-    add_csv_dump(catlg, "thejokecafe.csv", "TheJokeCafe (amoudgl)", 30, category="general")
-    add_csv_dump(catlg, "joke-db.csv", "JokeDB (amoudgl)", 25, category="general")
-    curated = len(catlg.rows)
-    print("curated", curated)
     print("reddit high-score…")
     reddit_added = 0
     for score, text, url, source in collect_reddit():
@@ -399,8 +420,25 @@ def main() -> None:
             max_len=REDDIT_MAX_LEN,
         ):
             reddit_added += 1
+    print("reddit_added", reddit_added)
+    print("short-jokes csvs…")
+    add_csv_dump(catlg, "reddit-cleanjokes.csv", "r/cleanjokes (amoudgl)", 50, rating="clean", category="dad")
+    add_csv_dump(catlg, "onelinefun.csv", "OneLineFun (amoudgl)", 40, category="one-liner")
+    add_csv_dump(catlg, "funjokes.csv", "FunJokes (amoudgl)", 30, category="general")
+    add_csv_dump(catlg, "thejokecafe.csv", "TheJokeCafe (amoudgl)", 30, category="general")
+    add_csv_dump(catlg, "joke-db.csv", "JokeDB (amoudgl)", 25, category="general")
+    add_csv_dump(
+        catlg,
+        "reddit-jokes.csv",
+        "r/Jokes (amoudgl archive)",
+        22,
+        category="reddit",
+        max_len=700,
+        cap=50000,
+        url="https://github.com/amoudgl/short-jokes-dataset",
+    )
     print("sources", json.dumps(catlg.stats, indent=2))
-    print("total", len(catlg.rows), "unique", "reddit_added", reddit_added)
+    print("total", len(catlg.rows), "unique")
     write_parts(catlg.rows)
 
 

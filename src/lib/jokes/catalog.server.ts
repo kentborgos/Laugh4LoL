@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
+import { CATALOG_META } from "./catalog";
 
 export type CatalogJoke = {
   setup: string;
@@ -37,9 +38,11 @@ async function readGzip(): Promise<Buffer> {
 
 let cached: CatalogJoke[] | null = null;
 let loading: Promise<CatalogJoke[]> | null = null;
+const CATALOG_EPOCH = 2;
 
 export async function loadCatalogJokes(): Promise<CatalogJoke[]> {
-  if (cached) return cached;
+  if (cached && cached.length === CATALOG_META.count) return cached;
+  cached = null;
   if (loading) return loading;
   loading = (async () => {
     const buf = await readGzip();
@@ -65,12 +68,11 @@ export async function loadCatalogJokes(): Promise<CatalogJoke[]> {
       const body = (raw.b || `${raw.s ?? ""} ${raw.p ?? ""}`).trim();
       if (body.length < 8) continue;
       const sourceName = raw.n || "open catalog";
-      const redditDump = sourceName.startsWith("r/Jokes (");
       rows.push({
         setup: raw.s ?? "",
         punchline: raw.p ?? "",
         body,
-        rating: raw.r === "a" || redditDump ? "adult" : "clean",
+        rating: raw.r === "a" ? "adult" : "clean",
         category: raw.c || "general",
         sourceName,
         sourceUrl: raw.u || "",
@@ -78,6 +80,7 @@ export async function loadCatalogJokes(): Promise<CatalogJoke[]> {
       });
     }
     cached = rows;
+    void CATALOG_EPOCH;
     return rows;
   })();
   try {

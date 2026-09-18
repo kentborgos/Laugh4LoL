@@ -14,7 +14,7 @@ import type { Membership } from "@/lib/jokes/billing.server";
 import { cn } from "@/lib/utils";
 
 const GREET_CLEAN =
-  "Name's Jester Bones. Skull, cigar, green hat — house comic for Laugh4.LoL. The vault's packed with tens of thousands of open-source bits. Hit me with a topic, a roast request, or just say 'hit me.' We could all use a little laugh.";
+  "Name's Jester Bones. Skull, cigar, green hat — house comic for Laugh4.LoL. The vault's packed with over a hundred thousand open-source bits. Hit me with a topic, a roast request, or just say 'hit me.' We could all use a little laugh.";
 const GREET_ADULT =
   "Late show's open. I'm Jester Bones — same skull, hotter material. Dirty jokes are on the table, and the vault's huge. Keep it adult, keep it funny. What did you laugh for?";
 

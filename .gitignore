@@ -13,3 +13,4 @@ artifacts
 .DS_Store
 .grok/*
 !.grok/app-env.json
+src/lib/jokes/catalog/part-*.jsonl

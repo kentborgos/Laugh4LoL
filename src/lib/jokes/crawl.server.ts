@@ -214,7 +214,10 @@ export async function insertJokes(batch: RawJoke[]) {
     const inserted = await sql.query<{ id: number }>(
       `insert into jokes (setup, punchline, body, rating, category, source_name, source_url, content_hash, score)
        values ${placeholders.join(",")}
-       on conflict (content_hash) do nothing
+       on conflict (content_hash) do update set
+         rating = excluded.rating,
+         score = greatest(jokes.score, excluded.score),
+         category = excluded.category
        returning id`,
       values,
     );
@@ -242,29 +245,25 @@ export async function seedIfEmpty() {
 }
 
 const globalCatalog = globalThis as typeof globalThis & {
-  __laughCatalogLock__?: Promise<{ saved: number; total: number }> | null;
-  __laughCatalogDone__?: boolean;
+  __laughCatalogLockV3__?: Promise<{ saved: number; total: number }> | null;
+  __laughCatalogDoneV3__?: boolean;
 };
 
 export async function importOpenCatalog(): Promise<{ saved: number; total: number; skipped: boolean }> {
-  if (globalCatalog.__laughCatalogDone__) {
+  if (globalCatalog.__laughCatalogDoneV3__) {
     return { saved: 0, total: CATALOG_META.count, skipped: true };
   }
-  if (globalCatalog.__laughCatalogLock__) return { ...(await globalCatalog.__laughCatalogLock__), skipped: false };
+  if (globalCatalog.__laughCatalogLockV3__) return { ...(await globalCatalog.__laughCatalogLockV3__), skipped: false };
 
   const job = (async () => {
     const sql = await getSql();
-    const existing = await sql<{ n: number }>`
-      select count(*)::int as n from jokes where source_name not in (${"Laugh4.LoL seed"})
+    const stamp = `vault:${CATALOG_META.count}`;
+    const marker = await sql<{ last_error: string | null }>`
+      select last_error from crawl_sources where name = ${CATALOG_MARKER} limit 1
     `;
-    if ((existing[0]?.n ?? 0) >= Math.min(8000, CATALOG_META.count - 200)) {
-      globalCatalog.__laughCatalogDone__ = true;
-      await sql`
-        update crawl_sources
-        set last_crawled = now(), last_status = ${"ok"}, last_error = ${null}
-        where name like ${"Catalog:%"}
-      `;
-      return { saved: 0, total: existing[0]?.n ?? 0 };
+    if (marker[0]?.last_error === stamp) {
+      globalCatalog.__laughCatalogDoneV3__ = true;
+      return { saved: 0, total: CATALOG_META.count };
     }
 
     await sql`
@@ -276,7 +275,7 @@ export async function importOpenCatalog(): Promise<{ saved: number; total: numbe
     const { loadCatalogJokes } = await import("./catalog.server");
     const catalog = await loadCatalogJokes();
     let saved = 0;
-    const slice = 200;
+    const slice = 400;
     for (let i = 0; i < catalog.length; i += slice) {
       const result = await insertJokes(
         catalog.slice(i, i + slice).map((j) => ({
@@ -296,14 +295,14 @@ export async function importOpenCatalog(): Promise<{ saved: number; total: numbe
 
     await sql`
       update crawl_sources
-      set last_crawled = now(), last_status = ${"ok"}, last_error = ${null}
+      set last_crawled = now(), last_status = ${"ok"}, last_error = ${stamp}
       where name like ${"Catalog:%"}
     `;
-    globalCatalog.__laughCatalogDone__ = true;
+    globalCatalog.__laughCatalogDoneV3__ = true;
     return { saved, total: catalog.length };
   })();
 
-  globalCatalog.__laughCatalogLock__ = job;
+  globalCatalog.__laughCatalogLockV3__ = job;
   try {
     return { ...(await job), skipped: false };
   } catch (err) {
@@ -316,7 +315,7 @@ export async function importOpenCatalog(): Promise<{ saved: number; total: numbe
     `;
     throw err;
   } finally {
-    globalCatalog.__laughCatalogLock__ = null;
+    globalCatalog.__laughCatalogLockV3__ = null;
   }
 }
 

@@ -1,10 +1,10 @@
 export const CATALOG_MARKER = "Catalog: taivop/joke-dataset";
 
 export const CATALOG_META = {
-  count: 45081,
-  parts: 19,
-  clean: 41827,
-  adult: 3254,
+  count: 131920,
+  parts: 53,
+  clean: 119348,
+  adult: 12572,
 } as const;
 
 export function isCatalogSource(name: string) {

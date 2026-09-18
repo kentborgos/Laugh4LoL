@@ -70,8 +70,8 @@ export function VaultBrowser() {
       <header className="grid gap-2">
         <h1 className="font-display text-4xl sm:text-5xl">The Vault</h1>
         <p className="max-w-2xl text-muted text-pretty">
-          Forty-five thousand bits poured in from the world's biggest open joke dumps — r/Jokes,
-          Wocka, StupidStuff, dad jokes, Official Joke API, JokeAPI — plus a live crawler that keeps
+          Over a hundred thousand bits from the world's biggest open joke dumps — r/Jokes,
+          Wocka, StupidStuff, amoudgl short jokes, dad jokes, Official Joke API, JokeAPI — plus a live crawler that keeps
           hunting. {total.toLocaleString()} on the floor
           {adult ? "" : " — adult cards stay locked until you pass the ID rope"}.
         </p>

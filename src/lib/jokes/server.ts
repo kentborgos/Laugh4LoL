@@ -64,7 +64,7 @@ export const getVaultStats = createServerFn({ method: "GET" }).handler(async ():
     sources: sources[0]?.n ?? 0,
     lastCrawl: last[0]?.finished_at ?? null,
     catalogSize: CATALOG_META.count,
-    catalogLoaded: total >= Math.min(8000, CATALOG_META.count / 4),
+    catalogLoaded: total >= Math.floor(CATALOG_META.count * 0.85),
   };
 });
 
