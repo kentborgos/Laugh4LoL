@@ -1,0 +1,38 @@
+# Deploys main → Vercel when VERCEL_TOKEN is set.
+# Preferred: connect kentborgos/Laugh4LoL in the Vercel project Git settings
+# so Vercel builds on push without this Action.
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: team_OrIlj4a1nIWlzQnGtUH4wMIM
+      VERCEL_PROJECT_ID: prj_APNNlFxSuPF6CWBfDgWHJrVytL9C
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "No VERCEL_TOKEN secret — skipping Action deploy."
+            echo "Connect the GitHub repo in Vercel: Project → Settings → Git."
+            echo "Private repo: GitHub → Settings → Applications → Vercel → enable Laugh4LoL."
+            echo "Or add secret VERCEL_TOKEN from https://vercel.com/account/tokens"
+            exit 0
+          fi
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

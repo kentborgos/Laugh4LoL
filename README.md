@@ -55,6 +55,21 @@ Set `DATABASE_URL` on Vercel (Neon). `XAI_API_KEY` powers Jester Bones.
 
 The Vercel function also ships PGLite's `pglite.data` / `.wasm` files so a missing `DATABASE_URL` does not 500 with `ENOENT … /var/task/_libs/pglite.data`. Production still wants Neon — PGLite is an in-memory fallback.
 
+### GitHub push is not deploying
+
+The repo is **private**. Vercel only builds on push if the **Vercel GitHub App** can see `kentborgos/Laugh4LoL`. Right now GitHub has no Vercel checks on `main`, so the live site is stale.
+
+Fix it once:
+
+1. Open the [laugh4lol project on Vercel](https://vercel.com/codenamesonar-vercel/laugh4lol).
+2. **Settings → Git → Connect Git Repository** → `kentborgos/Laugh4LoL` → production branch `main`.
+3. If the repo is missing: [GitHub → Applications → Vercel](https://github.com/apps/vercel) → **Configure** → grant access to **Laugh4LoL** (or all repos).
+4. **Deployments → Redeploy** the latest `main` commit (or push any new commit).
+
+Backup: add a GitHub Actions secret `VERCEL_TOKEN` (create at [Vercel tokens](https://vercel.com/account/tokens)). Workflow: `.github/workflows/deploy-vercel.yml`.
+
+Raw joke dumps (`data/jokes/raw`, ~162MB) are GitHub-only. Vercel ignores them via `.vercelignore` and reads `public/jokes/vault.jsonl.gz`.
+
 ## Joke database (in the repo)
 
 - Unique vault Jester reads: [`public/jokes/vault.jsonl.gz`](public/jokes/vault.jsonl.gz) — **131,920** hashed bits

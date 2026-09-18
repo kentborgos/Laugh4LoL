@@ -1,0 +1,5 @@
+# Runtime reads public/jokes/vault.jsonl.gz. Raw dumps stay on GitHub only.
+data/jokes/raw
+.grok
+artifacts
+screenshots
