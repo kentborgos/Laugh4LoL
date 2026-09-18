@@ -2,12 +2,14 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Mic2, Database, Radar, Lock, Unlock, Ticket } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { DonatePaypalButton } from "@/components/donate-button";
 import { Button } from "@/components/ui/button";
 import { AgeGate } from "@/components/age-gate";
 import { useAge } from "@/lib/jokes/age-store";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { getMembership } from "@/lib/jokes/billing";
+import { PAYPAL_DONATE_EMAIL } from "@/lib/jokes/donate";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -113,6 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="ml-auto flex items-center gap-2 lg:ml-2">
+            <DonatePaypalButton size="sm" label="Donate" className="hidden sm:inline-flex" />
             <AuthSlot />
             <Button
               variant={adult ? "adult" : "outline"}
@@ -151,7 +154,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16">{children}</main>
       <footer className="border-t border-border/70 px-4 py-6 text-center text-sm text-muted">
         <p className="font-medium text-ink">What did you Laugh For?</p>
-        <p className="mt-1">Laugh4.LoL · free tab · paid seats · late show 18+</p>
+        <p className="mt-1">Laugh4.LoL · free forever · late show 18+</p>
+        <div className="mt-3 flex flex-col items-center gap-2">
+          <DonatePaypalButton size="sm" label="Donate with PayPal" />
+          <p className="text-xs">
+            Donations to <span className="font-medium text-ink">{PAYPAL_DONATE_EMAIL}</span>
+          </p>
+        </div>
       </footer>
       <AgeGate open={gateOpen} onOpenChange={setGateOpen} />
     </div>

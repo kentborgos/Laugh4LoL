@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getPublicPricing } from "@/lib/jokes/billing";
 import { requestVerificationEmail } from "@/lib/jokes/email";
+import { DonatePaypalButton } from "@/components/donate-button";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
@@ -83,7 +84,7 @@ function Login() {
         <h1 className="font-display text-3xl">Pull up a chair</h1>
         <p className="mt-2 text-sm text-muted text-pretty">
           Free tab: {pricing ? `${pricing.dailyAi} AI chats a day` : "a few chats a day"} with Jester Bones.
-          PayPal donations keep the cigar lit — no paid seats. House admin signs in with email and password.
+          The whole club is free. PayPal donations are optional — they go to kent.borgos22@gmail.com.
         </p>
 
         {authEnabled ? (
@@ -149,6 +150,9 @@ function Login() {
         ) : (
           <p className="mt-4 text-sm text-muted">Sign-in is disabled.</p>
         )}
+        <div className="mt-5 border-t border-border pt-4">
+          <DonatePaypalButton className="w-full" label="Donate with PayPal" />
+        </div>
       </div>
     </main>
   );

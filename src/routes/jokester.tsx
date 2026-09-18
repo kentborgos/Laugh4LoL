@@ -259,7 +259,7 @@ function JokesterBody() {
         </Button>
 
         <h2 className="mt-2 font-display text-2xl">PayPal</h2>
-        <p className="text-sm text-muted">REST app from developer.paypal.com. Sandbox for rehearsal, Live for the door.</p>
+        <p className="text-sm text-muted">REST app from developer.paypal.com. Optional — the donate button already sends tips to kent.borgos22@gmail.com.</p>
         <label className="grid gap-1.5 text-sm font-medium">
           Mode
           <select

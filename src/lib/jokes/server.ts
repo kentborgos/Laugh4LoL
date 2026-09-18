@@ -191,7 +191,7 @@ export const chatWithJester = createServerFn({ method: "POST" })
     await seedIfEmpty();
     const quota = await consumeAiQuota(context.userId);
     if (!quota.allowed) {
-      const line = `That's today's set — ${quota.membership.dailyLimit} chats with Jester Bones a day. Vault and Hit me stay open. Toss a PayPal tip on Account if you like the room.`;
+      const line = `That's today's set — ${quota.membership.dailyLimit} chats with Jester Bones a day. Vault and Hit me stay open. The room is free — a PayPal tip is optional.`;
       return {
         ok: false as const,
         code: "limit" as const,

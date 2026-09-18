@@ -112,8 +112,9 @@ function AdminBody() {
       <header>
         <h1 className="font-display text-4xl sm:text-5xl">House admin</h1>
         <p className="mt-2 text-muted text-pretty">
-          Accounts are free. Set suggested PayPal donation amounts and the daily AI chat cap. Paste
-          Resend and PayPal keys at /jokester after the vault password.
+          Accounts are free. Suggested PayPal donation amounts feed the hat on Tab. Donations go
+          to kent.borgos22@gmail.com — no API keys required. Paste Resend keys at /jokester after
+          the vault password.
         </p>
       </header>
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DonatePaypalButton } from "@/components/donate-button";
 import { Textarea } from "@/components/ui/input";
 import { chatWithJester, getVaultStats, randomJoke } from "@/lib/jokes/server";
 import { getMembership, getPublicPricing } from "@/lib/jokes/billing";
@@ -138,16 +139,13 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         {membership ? (
           <p className="mt-3 text-center text-xs text-muted">
             Free tab · <span className="tabular-nums">{membership.remainingToday}</span> AI chats left today
-            {" · "}
-            <Link to="/account" className="font-medium text-logo-dark underline-offset-4 hover:underline">
-              Donate
-            </Link>
           </p>
         ) : signedOut && pricing ? (
           <p className="mt-3 text-center text-xs text-muted">
-            Free tab · {pricing.dailyAi} AI chats/day · donations via PayPal
+            Free tab · {pricing.dailyAi} AI chats/day
           </p>
         ) : null}
+        <DonatePaypalButton className="mt-3 w-full" size="sm" label="Donate with PayPal" />
         {membership && !membership.emailVerified ? (
           <p className="mt-2 text-center text-xs text-pretty">
             <Link to="/verify-email" className="font-medium text-logo-dark underline-offset-4 hover:underline">

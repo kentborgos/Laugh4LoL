@@ -18,7 +18,7 @@ The living joke vault — a yellow comedy stage with a green Laugh4.LoL mark, an
 
 - **Every account is free.** Vault browsing and Hit me stay free. Sign-in unlocks chats with Jester Bones.
 - **Email confirm:** optional Resend letter for email/password accounts.
-- **Donations:** one-time PayPal tips. No monthly or annual seats.
+- **Donations:** optional PayPal donate button to **kent.borgos22@gmail.com**. No monthly or annual seats. Guests can tip without signing in.
 - Sign in with Google, X, or email & password. House admin uses email and password.
 - **Admin** sets suggested donation amounts and the daily AI chat cap.
 - **/jokester** is the house key vault. Sign in as admin, then unlock with the 40-character vault password (shown once in the Grok chat that created it). Optional override: `JOKESTER_PASSWORD`.
