@@ -16,11 +16,11 @@ The living joke vault — a yellow comedy stage with a green Laugh4.LoL mark, an
 
 ## Accounts
 
-- **Free tab:** a short daily set with Jester Bones (default 5 AI chats/day). Vault browsing and Hit me stay free.
-- **Email confirm:** new email/password accounts get a Resend verification letter. Free chats still work; PayPal seats wait for the click.
-- **Paid seats:** monthly and annual memberships billed through PayPal. House admin sets both prices.
+- **Every account is free.** Vault browsing and Hit me stay free. Sign-in unlocks chats with Jester Bones.
+- **Email confirm:** optional Resend letter for email/password accounts.
+- **Donations:** one-time PayPal tips. No monthly or annual seats.
 - Sign in with Google, X, or email & password. House admin uses email and password.
-- **Admin** sets monthly price, annual price, and daily chat caps.
+- **Admin** sets suggested donation amounts and the daily AI chat cap.
 - **/jokester** is the house key vault: paste Resend API key + from-address and PayPal client id/secret (sandbox or live). Env vars override the form if both are set.
 
 ## House keys

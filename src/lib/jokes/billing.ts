@@ -15,10 +15,9 @@ import { pingPaypal } from "./paypal.server";
 export const getPublicPricing = createServerFn({ method: "GET" }).handler(async () => {
   const s = await loadSettings();
   return {
-    monthlyPriceCents: s.monthlyPriceCents,
-    annualPriceCents: s.annualPriceCents,
-    freeDailyAi: s.freeDailyAi,
-    paidDailyAi: s.paidDailyAi,
+    tipPriceCents: s.tipPriceCents,
+    roundPriceCents: s.roundPriceCents,
+    dailyAi: s.dailyAi,
   };
 });
 
@@ -34,10 +33,9 @@ export const updateSitePrices = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        monthlyPriceCents: z.number().int().min(100).max(50000),
-        annualPriceCents: z.number().int().min(100).max(200000),
-        freeDailyAi: z.number().int().min(1).max(20),
-        paidDailyAi: z.number().int().min(10).max(200),
+        tipPriceCents: z.number().int().min(100).max(50000),
+        roundPriceCents: z.number().int().min(100).max(200000),
+        dailyAi: z.number().int().min(1).max(200),
         adminEmail: z.string().email().max(120),
       })
       .parse(input),
