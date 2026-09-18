@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { getHouseKeys, saveHouseKeys, testPaypalKey, testResendKey } from "@/lib/jokes/billing";
+import { getHouseKeys, getJokesterLock, saveHouseKeys, testPaypalKey, testResendKey, unlockJokester } from "@/lib/jokes/billing";
 
 export const Route = createFileRoute("/jokester")({ component: JokesterPage });
 
@@ -27,6 +27,8 @@ function JokesterPage() {
 }
 
 function JokesterBody() {
+  const [gate, setGate] = useState<"loading" | "locked" | "open" | "forbidden">("loading");
+  const [password, setPassword] = useState("");
   const [resendApiKey, setResendApiKey] = useState("");
   const [resendFromEmail, setResendFromEmail] = useState("Laugh4.LoL <onboarding@resend.dev>");
   const [paypalClientId, setPaypalClientId] = useState("");
@@ -39,12 +41,21 @@ function JokesterBody() {
   );
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"save" | "resend" | "paypal" | null>(null);
+  const [busy, setBusy] = useState<"save" | "resend" | "paypal" | "unlock" | null>(null);
   const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
-    void getHouseKeys()
+    void getJokesterLock()
       .then((data) => {
+        if (data.unlocked) {
+          setGate("open");
+          return getHouseKeys();
+        }
+        setGate("locked");
+        return null;
+      })
+      .then((data) => {
+        if (!data) return;
         setResendFromEmail(data.resendFromEmail);
         setPaypalMode(data.paypalMode);
         setHints({
@@ -59,8 +70,44 @@ function JokesterBody() {
           env: data.envOverrides,
         });
       })
-      .catch(() => setForbidden(true));
+      .catch(() => {
+        setForbidden(true);
+        setGate("forbidden");
+      });
   }, []);
+
+  async function loadKeys() {
+    const data = await getHouseKeys();
+    setResendFromEmail(data.resendFromEmail);
+    setPaypalMode(data.paypalMode);
+    setHints({
+      resend: data.resendApiKeyHint,
+      paypalId: data.paypalClientIdHint,
+      paypalSecret: data.paypalReady ? "••••saved" : "",
+      webhook: data.paypalWebhookIdHint,
+    });
+    setStatus({
+      resendReady: data.resendReady,
+      paypalReady: data.paypalReady,
+      env: data.envOverrides,
+    });
+    setGate("open");
+  }
+
+  async function onUnlock(e: FormEvent) {
+    e.preventDefault();
+    setBusy("unlock");
+    setError(null);
+    try {
+      await unlockJokester({ data: { password } });
+      setPassword("");
+      await loadKeys();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not unlock.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -125,7 +172,7 @@ function JokesterBody() {
     }
   }
 
-  if (forbidden) {
+  if (forbidden || gate === "forbidden") {
     return (
       <div className="max-w-lg">
         <h1 className="font-display text-4xl">Jokester is locked</h1>
@@ -133,6 +180,41 @@ function JokesterBody() {
         <Link to="/account" className="mt-4 inline-block font-medium text-logo-dark underline-offset-4 hover:underline">
           Back to your tab
         </Link>
+      </div>
+    );
+  }
+
+  if (gate === "loading") {
+    return <div className="h-40 max-w-xl animate-pulse rounded-[var(--radius-xl)] bg-surface" />;
+  }
+
+  if (gate === "locked") {
+    return (
+      <div className="grid max-w-xl gap-6">
+        <header>
+          <p className="text-[0.7rem] font-medium tracking-wide text-muted uppercase">House keys</p>
+          <h1 className="font-display text-4xl sm:text-5xl">/jokester</h1>
+          <p className="mt-2 text-muted text-pretty">
+            Enter the 40-character vault password. It is not stored in the browser.
+          </p>
+        </header>
+        <form className="grid gap-3 rounded-[var(--radius-xl)] border border-border bg-surface p-5" onSubmit={onUnlock}>
+          <label className="grid gap-1.5 text-sm font-medium">
+            Jokester password
+            <Input
+              type="password"
+              autoComplete="off"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+            />
+          </label>
+          {error ? <p className="text-sm text-adult">{error}</p> : null}
+          <Button type="submit" disabled={busy !== null}>
+            {busy === "unlock" ? "Checking…" : "Unlock vault"}
+          </Button>
+        </form>
       </div>
     );
   }

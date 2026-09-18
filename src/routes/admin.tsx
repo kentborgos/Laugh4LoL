@@ -28,14 +28,13 @@ function AdminPage() {
 }
 
 function AdminBody() {
-  const [monthly, setMonthly] = useState("5.99");
-  const [annual, setAnnual] = useState("49.99");
-  const [freeAi, setFreeAi] = useState("5");
-  const [paidAi, setPaidAi] = useState("80");
+  const [tip, setTip] = useState("5.00");
+  const [round, setRound] = useState("25.00");
+  const [dailyAi, setDailyAi] = useState("80");
   const [adminEmail, setAdminEmail] = useState("");
   const [stats, setStats] = useState<{
     members: number;
-    paid: number;
+    donations: number;
     chatsToday: number;
     resendReady: boolean;
     paypalReady: boolean;
@@ -48,14 +47,13 @@ function AdminBody() {
   useEffect(() => {
     void getAdminOverview()
       .then((data) => {
-        setMonthly(dollars(data.settings.monthlyPriceCents));
-        setAnnual(dollars(data.settings.annualPriceCents));
-        setFreeAi(String(data.settings.freeDailyAi));
-        setPaidAi(String(data.settings.paidDailyAi));
+        setTip(dollars(data.settings.tipPriceCents));
+        setRound(dollars(data.settings.roundPriceCents));
+        setDailyAi(String(data.settings.dailyAi));
         setAdminEmail(data.settings.adminEmail);
         setStats({
           members: data.members,
-          paid: data.paid,
+          donations: data.donations,
           chatsToday: data.chatsToday,
           resendReady: data.resendReady,
           paypalReady: data.paypalReady,
@@ -66,16 +64,15 @@ function AdminBody() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const monthlyCents = parseDollars(monthly);
-    const annualCents = parseDollars(annual);
-    const free = Number.parseInt(freeAi, 10);
-    const paid = Number.parseInt(paidAi, 10);
-    if (monthlyCents == null || annualCents == null) {
-      setError("Prices need to look like money.");
+    const tipCents = parseDollars(tip);
+    const roundCents = parseDollars(round);
+    const daily = Number.parseInt(dailyAi, 10);
+    if (tipCents == null || roundCents == null) {
+      setError("Donation amounts need to look like money.");
       return;
     }
-    if (!Number.isFinite(free) || !Number.isFinite(paid) || free < 1 || paid < 10) {
-      setError("Chat caps need to be whole numbers.");
+    if (!Number.isFinite(daily) || daily < 1) {
+      setError("Chat cap needs to be a whole number.");
       return;
     }
     setBusy(true);
@@ -84,14 +81,13 @@ function AdminBody() {
     try {
       await updateSitePrices({
         data: {
-          monthlyPriceCents: monthlyCents,
-          annualPriceCents: annualCents,
-          freeDailyAi: free,
-          paidDailyAi: paid,
+          tipPriceCents: tipCents,
+          roundPriceCents: roundCents,
+          dailyAi: daily,
           adminEmail: adminEmail.trim(),
         },
       });
-      setSaved("House prices are up on the board.");
+      setSaved("House settings are up on the board.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save.");
     } finally {
@@ -116,15 +112,15 @@ function AdminBody() {
       <header>
         <h1 className="font-display text-4xl sm:text-5xl">House admin</h1>
         <p className="mt-2 text-muted text-pretty">
-          Set what a seat costs. Free tabs keep a short daily chat with Jester Bones. Paste Resend and
-          PayPal keys at /jokester.
+          Accounts are free. Set suggested PayPal donation amounts and the daily AI chat cap. Paste
+          Resend and PayPal keys at /jokester after the vault password.
         </p>
       </header>
 
       {stats ? (
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <Tile label="Members" value={stats.members} />
-          <Tile label="Paid" value={stats.paid} />
+          <Tile label="Donations" value={stats.donations} />
           <Tile label="Chats today" value={stats.chatsToday} />
           <Tile label="Resend" value={stats.resendReady ? "On" : "Off"} />
           <Tile label="PayPal" value={stats.paypalReady ? "On" : "Off"} />
@@ -133,20 +129,16 @@ function AdminBody() {
 
       <form className="grid gap-3 rounded-[var(--radius-xl)] border border-border bg-surface p-5" onSubmit={onSubmit}>
         <label className="grid gap-1.5 text-sm font-medium">
-          Monthly price (USD)
-          <Input value={monthly} onChange={(e) => setMonthly(e.target.value)} inputMode="decimal" required />
+          Suggested tip (USD)
+          <Input value={tip} onChange={(e) => setTip(e.target.value)} inputMode="decimal" required />
         </label>
         <label className="grid gap-1.5 text-sm font-medium">
-          Annual price (USD)
-          <Input value={annual} onChange={(e) => setAnnual(e.target.value)} inputMode="decimal" required />
+          Suggested round (USD)
+          <Input value={round} onChange={(e) => setRound(e.target.value)} inputMode="decimal" required />
         </label>
         <label className="grid gap-1.5 text-sm font-medium">
-          Free AI chats per day
-          <Input value={freeAi} onChange={(e) => setFreeAi(e.target.value)} inputMode="numeric" required />
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium">
-          Paid AI chats per day
-          <Input value={paidAi} onChange={(e) => setPaidAi(e.target.value)} inputMode="numeric" required />
+          AI chats per day
+          <Input value={dailyAi} onChange={(e) => setDailyAi(e.target.value)} inputMode="numeric" required />
         </label>
         <label className="grid gap-1.5 text-sm font-medium">
           Admin email
@@ -161,7 +153,7 @@ function AdminBody() {
         {error ? <p className="text-sm text-adult">{error}</p> : null}
         {saved ? <p className="text-sm text-logo-dark">{saved}</p> : null}
         <Button type="submit" disabled={busy}>
-          {busy ? "Saving…" : "Save prices"}
+          {busy ? "Saving…" : "Save settings"}
         </Button>
       </form>
       <p>

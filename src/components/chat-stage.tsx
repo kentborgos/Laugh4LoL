@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { chatWithJester, getVaultStats, randomJoke } from "@/lib/jokes/server";
 import { getMembership, getPublicPricing } from "@/lib/jokes/billing";
-import { dollars } from "@/lib/jokes/money";
 import { useAge } from "@/lib/jokes/age-store";
 import { AgeGate } from "@/components/age-gate";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -26,7 +25,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<VaultStats | null>(initialStats ?? null);
   const [membership, setMembership] = useState<Membership | null>(null);
-  const [pricing, setPricing] = useState<{ monthlyPriceCents: number; freeDailyAi: number } | null>(null);
+  const [pricing, setPricing] = useState<{ dailyAi: number } | null>(null);
   const [messages, setMessages] = useState<ChatTurn[]>([{ role: "assistant", content: GREET_CLEAN }]);
   const scroller = useRef<HTMLDivElement>(null);
   const adultGreeted = useRef(false);
@@ -46,7 +45,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
     if (isPending || !user) {
       setMembership(null);
       void getPublicPricing()
-        .then((p) => setPricing({ monthlyPriceCents: p.monthlyPriceCents, freeDailyAi: p.freeDailyAi }))
+        .then((p) => setPricing({ dailyAi: p.dailyAi }))
         .catch(() => setPricing(null));
       return;
     }
@@ -92,7 +91,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         {
           role: "assistant",
           content: unauthorized
-            ? "Sign in first — free tab is a few chats a day. Vault jokes are still on the house."
+            ? "Sign in first — the Stage is free. Vault jokes are still on the house."
             : "The mic just ate a cigar ash. Say that again?",
         },
       ]);
@@ -129,7 +128,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         />
         <p className="mt-3 text-center font-display text-2xl text-logo">Jester Bones</p>
         <p className="mt-1 text-center text-sm text-muted text-pretty">
-          House comic. Free tab is a short set. Paid seats get a longer night.
+          House comic. The room is free. Toss a PayPal tip if you like the set.
         </p>
         <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
           <Stat label="Vault" value={stats?.total.toLocaleString() ?? "—"} />
@@ -138,28 +137,22 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         </dl>
         {membership ? (
           <p className="mt-3 text-center text-xs text-muted">
-            {membership.paid ? "Paid seat" : "Free tab"} ·{" "}
-            <span className="tabular-nums">{membership.remainingToday}</span> AI chats left today
-            {capped ? (
-              <>
-                {" · "}
-                <Link to="/account" className="font-medium text-logo-dark underline-offset-4 hover:underline">
-                  Upgrade
-                </Link>
-              </>
-            ) : null}
+            Free tab · <span className="tabular-nums">{membership.remainingToday}</span> AI chats left today
+            {" · "}
+            <Link to="/account" className="font-medium text-logo-dark underline-offset-4 hover:underline">
+              Donate
+            </Link>
           </p>
         ) : signedOut && pricing ? (
           <p className="mt-3 text-center text-xs text-muted">
-            Free tab: {pricing.freeDailyAi} AI chats/day · seats from ${dollars(pricing.monthlyPriceCents)}/mo
+            Free tab · {pricing.dailyAi} AI chats/day · donations via PayPal
           </p>
         ) : null}
         {membership && !membership.emailVerified ? (
           <p className="mt-2 text-center text-xs text-pretty">
             <Link to="/verify-email" className="font-medium text-logo-dark underline-offset-4 hover:underline">
               Confirm your email
-            </Link>{" "}
-            before a PayPal seat.
+            </Link>
           </p>
         ) : null}
         <Button
@@ -216,7 +209,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         ) : signedOut ? (
           <div className="flex flex-col gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted text-pretty">
-              Open a free tab — a few AI chats a day. Hit me is always on the house.
+              Open a free tab with Jester Bones. Hit me is always on the house.
             </p>
             <Button asChild>
               <Link to="/login">Sign in</Link>
@@ -225,10 +218,10 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
         ) : capped ? (
           <div className="flex flex-col gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted text-pretty">
-              That's today's free set. Vault and Hit me stay open. A paid seat buys a bigger stack.
+              That's today's set. Vault and Hit me stay open. Come back tomorrow — or toss a tip if you like.
             </p>
             <Button asChild>
-              <Link to="/account">Upgrade tab</Link>
+              <Link to="/account">Donate</Link>
             </Button>
           </div>
         ) : (

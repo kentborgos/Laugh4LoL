@@ -2,12 +2,13 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { getMembership } from "@/lib/jokes/billing";
 import { requestVerificationEmail } from "@/lib/jokes/email";
-import { dollars } from "@/lib/jokes/money";
-import { finishPaypalCheckout, startPaypalCheckout } from "@/lib/jokes/paypal";
+import { dollars, parseDollars } from "@/lib/jokes/money";
+import { finishPaypalCheckout, startPaypalDonation } from "@/lib/jokes/paypal";
 import type { Membership } from "@/lib/jokes/billing.server";
 
 type Search = { paypal?: string; token?: string };
@@ -41,8 +42,9 @@ function AccountBody() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const [m, setM] = useState<Membership | null>(null);
-  const [busy, setBusy] = useState<"monthly" | "annual" | "verify" | "capture" | null>(null);
+  const [busy, setBusy] = useState<"tip" | "round" | "custom" | "verify" | "capture" | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [custom, setCustom] = useState("10.00");
   const capturing = useRef(false);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ function AccountBody() {
 
   useEffect(() => {
     if (search.paypal === "cancel") {
-      setNote("PayPal checkout was cancelled. Your free tab is still open.");
+      setNote("PayPal donation was cancelled. The room is still free.");
       return;
     }
     if (search.paypal !== "return" || !search.token || capturing.current) return;
@@ -60,11 +62,7 @@ function AccountBody() {
     void finishPaypalCheckout({ data: { orderId: search.token } })
       .then((next) => {
         setM(next);
-        setNote(
-          next.plan === "annual"
-            ? "PayPal cleared. That's a year of late-show chats."
-            : "PayPal cleared. Monthly membership is on.",
-        );
+        setNote("PayPal cleared. Thanks for keeping the lights on — we could all use a little laugh.");
         void navigate({ to: "/account", search: {}, replace: true });
       })
       .catch((err) => {
@@ -73,11 +71,11 @@ function AccountBody() {
       .finally(() => setBusy(null));
   }, [search.paypal, search.token, navigate]);
 
-  async function pay(plan: "monthly" | "annual") {
-    setBusy(plan);
+  async function donate(amountCents: number, kind: "tip" | "round" | "custom") {
+    setBusy(kind);
     setNote(null);
     try {
-      const checkout = await startPaypalCheckout({ data: { plan } });
+      const checkout = await startPaypalDonation({ data: { amountCents } });
       window.location.href = checkout.url;
     } catch (err) {
       setNote(err instanceof Error ? err.message : "PayPal wouldn't open. Try again.");
@@ -109,15 +107,15 @@ function AccountBody() {
 
   if (!m) return <p className="text-sm text-muted">Pulling your tab…</p>;
 
-  const payDisabled = busy !== null || !m.emailVerified || !m.paypalReady;
+  const donateDisabled = busy !== null || !m.paypalReady;
 
   return (
     <div className="grid max-w-3xl gap-6">
       <header>
         <h1 className="font-display text-4xl sm:text-5xl">Your tab</h1>
         <p className="mt-2 text-muted text-pretty">
-          Free accounts get a short set with the house comic. Paid seats run through PayPal. Confirm your email
-          before a paid seat.
+          Every account is free. Vault, Hit me, and Jester Bones stay on the house. If you want to
+          toss a few bucks in the hat, PayPal donations keep the cigar lit.
         </p>
       </header>
 
@@ -127,8 +125,7 @@ function AccountBody() {
           <p className="mt-2 text-sm text-pretty">
             {m.email ? (
               <>
-                We need <span className="font-medium">{m.email}</span> verified via Resend before PayPal will take
-                money.
+                Optional, but nice — confirm <span className="font-medium">{m.email}</span> via Resend.
               </>
             ) : (
               "Add an email on this account, then we'll send a Resend letter."
@@ -142,14 +139,11 @@ function AccountBody() {
 
       <section className="rounded-[var(--radius-xl)] border border-border bg-surface p-5">
         <p className="text-[0.7rem] font-medium tracking-wide text-muted uppercase">Current plan</p>
-        <p className="font-display text-3xl capitalize">{m.paid ? m.plan : "free"}</p>
+        <p className="font-display text-3xl">Free</p>
         <p className="mt-2 text-sm">
           AI chats today: <span className="tabular-nums font-medium">{m.remainingToday}</span> of{" "}
           <span className="tabular-nums">{m.dailyLimit}</span> left
         </p>
-        {m.expiresAt ? (
-          <p className="mt-1 text-sm text-muted">Paid through {new Date(m.expiresAt).toLocaleDateString()}</p>
-        ) : null}
         <p className="mt-1 text-sm text-muted">
           Email {m.emailVerified ? "confirmed" : "unconfirmed"}
           {m.paypalReady ? "" : " · PayPal keys not set"}
@@ -157,7 +151,7 @@ function AccountBody() {
         {m.isAdmin ? (
           <p className="mt-3 flex flex-wrap gap-4">
             <Link to="/admin" className="font-medium text-logo-dark underline-offset-4 hover:underline">
-              Open admin (prices)
+              Open admin
             </Link>
             <Link to="/jokester" className="font-medium text-logo-dark underline-offset-4 hover:underline">
               House keys (/jokester)
@@ -168,48 +162,55 @@ function AccountBody() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <article className="rounded-[var(--radius-xl)] border border-border bg-surface p-5">
-          <h2 className="font-display text-2xl">Monthly</h2>
-          <p className="mt-1 font-display text-4xl tabular-nums">
-            ${dollars(m.monthlyPriceCents)}
-            <span className="text-base font-sans text-muted"> / mo</span>
-          </p>
-          <p className="mt-2 text-sm text-muted">PayPal checkout. Bigger daily chat stack with Jester Bones.</p>
-          <Button
-            className="mt-4 w-full"
-            disabled={payDisabled || (m.paid && m.plan === "monthly")}
-            onClick={() => void pay("monthly")}
-          >
-            {busy === "monthly" || busy === "capture"
-              ? "Opening PayPal…"
-              : m.paid && m.plan === "monthly"
-                ? "Active"
-                : "Pay with PayPal"}
+          <h2 className="font-display text-2xl">Tip the hat</h2>
+          <p className="mt-1 font-display text-4xl tabular-nums">${dollars(m.tipPriceCents)}</p>
+          <p className="mt-2 text-sm text-muted">One-time PayPal donation. No subscription.</p>
+          <Button className="mt-4 w-full" disabled={donateDisabled} onClick={() => void donate(m.tipPriceCents, "tip")}>
+            {busy === "tip" || busy === "capture" ? "Opening PayPal…" : "Donate with PayPal"}
           </Button>
         </article>
         <article className="rounded-[var(--radius-xl)] border border-border bg-surface p-5">
-          <h2 className="font-display text-2xl">Annual</h2>
-          <p className="mt-1 font-display text-4xl tabular-nums">
-            ${dollars(m.annualPriceCents)}
-            <span className="text-base font-sans text-muted"> / yr</span>
-          </p>
-          <p className="mt-2 text-sm text-muted">Same seat, paid once for the year through PayPal.</p>
+          <h2 className="font-display text-2xl">Buy a round</h2>
+          <p className="mt-1 font-display text-4xl tabular-nums">${dollars(m.roundPriceCents)}</p>
+          <p className="mt-2 text-sm text-muted">Bigger one-time tip. Still not a paid seat.</p>
           <Button
             className="mt-4 w-full"
             variant="ink"
-            disabled={payDisabled || (m.paid && m.plan === "annual")}
-            onClick={() => void pay("annual")}
+            disabled={donateDisabled}
+            onClick={() => void donate(m.roundPriceCents, "round")}
           >
-            {busy === "annual" || busy === "capture"
-              ? "Opening PayPal…"
-              : m.paid && m.plan === "annual"
-                ? "Active"
-                : "Pay with PayPal"}
+            {busy === "round" || busy === "capture" ? "Opening PayPal…" : "Donate with PayPal"}
           </Button>
         </article>
       </div>
-      {!m.emailVerified ? (
-        <p className="text-sm text-muted">Confirm your email to unlock PayPal.</p>
-      ) : !m.paypalReady ? (
+
+      <section className="rounded-[var(--radius-xl)] border border-border bg-surface p-5">
+        <h2 className="font-display text-2xl">Custom amount</h2>
+        <p className="mt-2 text-sm text-muted">Any one-time amount from $1 to $1,000.</p>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+          <Input
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            inputMode="decimal"
+            aria-label="Custom donation in dollars"
+          />
+          <Button
+            disabled={donateDisabled}
+            onClick={() => {
+              const cents = parseDollars(custom);
+              if (cents == null || cents < 100) {
+                setNote("Donation needs to be at least $1.00.");
+                return;
+              }
+              void donate(cents, "custom");
+            }}
+          >
+            {busy === "custom" ? "Opening PayPal…" : "Donate"}
+          </Button>
+        </div>
+      </section>
+
+      {!m.paypalReady ? (
         <p className="text-sm text-muted">
           House PayPal keys aren't in yet.
           {m.isAdmin ? (

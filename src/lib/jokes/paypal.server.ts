@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getSql } from "@/lib/db";
-import { ensureMember, isEmailVerified, loadMembership, loadSettings, requireAdmin, startPlan } from "./billing.server";
+import { ensureMember, loadMembership, requireAdmin } from "./billing.server";
 import { loadHouseKeys } from "./keys.server";
 import { dollars } from "./money";
 import { publicOrigin } from "./origin.server";
@@ -72,14 +72,8 @@ export async function pingPaypal(userId: string) {
   return { ok: true as const, mode: keys.paypalMode };
 }
 
-export async function createPaypalCheckout(userId: string, plan: "monthly" | "annual") {
+export async function createPaypalDonation(userId: string, amountCents: number) {
   await ensureMember(userId);
-  if (!(await isEmailVerified(userId))) {
-    throw new Error("Confirm your email before PayPal will take a seat.");
-  }
-  const membership = await loadMembership(userId);
-  const settings = await loadSettings();
-  const price = plan === "monthly" ? settings.monthlyPriceCents : settings.annualPriceCents;
   const origin = publicOrigin();
   const order = await paypalFetch("/v2/checkout/orders", {
     method: "POST",
@@ -87,10 +81,10 @@ export async function createPaypalCheckout(userId: string, plan: "monthly" | "an
       intent: "CAPTURE",
       purchase_units: [
         {
-          reference_id: `${plan}:${userId}`.slice(0, 127),
+          reference_id: `donate:${userId}`.slice(0, 127),
           custom_id: userId.slice(0, 127),
-          description: `Laugh4.LoL ${plan} membership`,
-          amount: { currency_code: "USD", value: dollars(price) },
+          description: "Laugh4.LoL donation — We Could All Use A Little Laugh!",
+          amount: { currency_code: "USD", value: dollars(amountCents) },
         },
       ],
       application_context: {
@@ -109,10 +103,10 @@ export async function createPaypalCheckout(userId: string, plan: "monthly" | "an
   const sql = await getSql();
   await sql`
     insert into payments (id, user_id, plan, amount_cents, paypal_order_id, status)
-    values (${randomUUID()}, ${userId}, ${plan}, ${price}, ${orderId}, ${"created"})
+    values (${randomUUID()}, ${userId}, ${"donation"}, ${amountCents}, ${orderId}, ${"created"})
     on conflict (paypal_order_id) do nothing
   `;
-  return { url: approve, orderId, plan, amountCents: price, membership };
+  return { url: approve, orderId, amountCents };
 }
 
 type CaptureResult = {
@@ -130,7 +124,7 @@ export async function capturePaypalOrder(userId: string, orderId: string) {
   const sql = await getSql();
   const existing = await sql<{
     user_id: string;
-    plan: "monthly" | "annual";
+    plan: string;
     status: string;
   }>`select user_id, plan, status from payments where paypal_order_id = ${orderId}`;
   const row = existing[0];
@@ -149,14 +143,14 @@ export async function capturePaypalOrder(userId: string, orderId: string) {
     captured = (await paypalFetch(`/v2/checkout/orders/${encodeURIComponent(orderId)}`)) as CaptureResult;
   }
 
-  return settleCapture(userId, orderId, row.plan, captured);
+  return settleCapture(userId, orderId, captured);
 }
 
 export async function settlePaypalWebhook(orderId: string) {
   const sql = await getSql();
   const existing = await sql<{
     user_id: string;
-    plan: "monthly" | "annual";
+    plan: string;
     status: string;
   }>`select user_id, plan, status from payments where paypal_order_id = ${orderId}`;
   const row = existing[0];
@@ -164,16 +158,11 @@ export async function settlePaypalWebhook(orderId: string) {
   if (row.status === "completed") return { ok: true as const };
   const order = (await paypalFetch(`/v2/checkout/orders/${encodeURIComponent(orderId)}`)) as CaptureResult;
   if (order.status !== "COMPLETED") return { ok: false as const };
-  await settleCapture(row.user_id, orderId, row.plan, order);
+  await settleCapture(row.user_id, orderId, order);
   return { ok: true as const };
 }
 
-async function settleCapture(
-  userId: string,
-  orderId: string,
-  plan: "monthly" | "annual",
-  captured: CaptureResult,
-) {
+async function settleCapture(userId: string, orderId: string, captured: CaptureResult) {
   const customId = captured.purchase_units?.[0]?.custom_id;
   if (customId && customId !== userId) throw new Error("PayPal order belongs to a different tab.");
   const captureOk =
@@ -186,12 +175,6 @@ async function settleCapture(
     update payments
     set status = ${"completed"}, payer_email = ${payer}, captured_at = now()
     where paypal_order_id = ${orderId}
-  `;
-  await startPlan(userId, plan);
-  await sql`
-    update subscriptions
-    set paypal_order_id = ${orderId}, payer_email = ${payer}
-    where user_id = ${userId}
   `;
   return loadMembership(userId);
 }

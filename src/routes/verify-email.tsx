@@ -69,7 +69,7 @@ function VerifyEmailPage() {
         {state === "checking" ? <p className="text-muted">Checking the velvet rope…</p> : null}
         {state === "ok" ? (
           <>
-            <p className="text-pretty">You're on the list. Jester Bones will take your tab seriously now — including PayPal seats.</p>
+            <p className="text-pretty">You're on the list. Jester Bones will take your tab seriously now.</p>
             <Button asChild>
               <Link to="/account">Open your tab</Link>
             </Button>
@@ -81,8 +81,7 @@ function VerifyEmailPage() {
         {state === "idle" || state === "expired" || state === "missing" || state === "error" ? (
           <>
             <p className="text-muted text-pretty">
-              We send a Resend letter so nobody else can sit in your chair. Free chats still work. Paid seats wait
-              for the click.
+              We send a Resend letter so nobody else can sit in your chair. The Stage stays free.
             </p>
             {isPending ? null : user ? (
               <Button onClick={() => void resend()} disabled={busy}>

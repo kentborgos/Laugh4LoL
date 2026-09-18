@@ -11,6 +11,7 @@ import {
 import { keysStatus, loadHouseKeys, mask, writeHouseKeys } from "./keys.server";
 import { sendAdminTestEmail } from "./email.server";
 import { pingPaypal } from "./paypal.server";
+import { jokesterUnlocked, requireJokester, unlockJokesterWithPassword } from "./jokester-lock.server";
 
 export const getPublicPricing = createServerFn({ method: "GET" }).handler(async () => {
   const s = await loadSettings();
@@ -43,10 +44,27 @@ export const updateSitePrices = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => savePrices(context.userId, data));
 
+export const getJokesterLock = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.userId);
+    return { unlocked: jokesterUnlocked() };
+  });
+
+export const unlockJokester = createServerFn({ method: "POST" })
+  .validator((input: unknown) => z.object({ password: z.string().min(1).max(80) }).parse(input))
+  .middleware([authMiddleware])
+  .handler(async ({ context, data }) => {
+    await requireAdmin(context.userId);
+    unlockJokesterWithPassword(data.password);
+    return { unlocked: true as const };
+  });
+
 export const getHouseKeys = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
+    requireJokester();
     const settings = await loadSettings();
     const keys = await loadHouseKeys();
     return {
@@ -77,13 +95,22 @@ export const saveHouseKeys = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
     await requireAdmin(context.userId);
+    requireJokester();
     return writeHouseKeys(data);
   });
 
 export const testResendKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => sendAdminTestEmail(context.userId));
+  .handler(async ({ context }) => {
+    await requireAdmin(context.userId);
+    requireJokester();
+    return sendAdminTestEmail(context.userId);
+  });
 
 export const testPaypalKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => pingPaypal(context.userId));
+  .handler(async ({ context }) => {
+    await requireAdmin(context.userId);
+    requireJokester();
+    return pingPaypal(context.userId);
+  });

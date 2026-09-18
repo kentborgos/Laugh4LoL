@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getPublicPricing } from "@/lib/jokes/billing";
 import { requestVerificationEmail } from "@/lib/jokes/email";
-import { dollars } from "@/lib/jokes/money";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
@@ -19,9 +18,9 @@ function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pricing, setPricing] = useState<{
-    monthlyPriceCents: number;
-    annualPriceCents: number;
-    freeDailyAi: number;
+    tipPriceCents: number;
+    roundPriceCents: number;
+    dailyAi: number;
   } | null>(null);
 
   useEffect(() => {
@@ -83,9 +82,8 @@ function Login() {
         </Link>
         <h1 className="font-display text-3xl">Pull up a chair</h1>
         <p className="mt-2 text-sm text-muted text-pretty">
-          Free tab: {pricing ? `${pricing.freeDailyAi} AI chats a day` : "a few chats a day"} with Jester Bones.
-          Paid seats {pricing ? `from $${dollars(pricing.monthlyPriceCents)}/mo or $${dollars(pricing.annualPriceCents)}/yr` : "are posted on your tab"} via PayPal after a Resend email confirm.
-          House admin signs in with email and password.
+          Free tab: {pricing ? `${pricing.dailyAi} AI chats a day` : "a few chats a day"} with Jester Bones.
+          PayPal donations keep the cigar lit — no paid seats. House admin signs in with email and password.
         </p>
 
         {authEnabled ? (

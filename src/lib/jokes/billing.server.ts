@@ -4,14 +4,13 @@ import { dollars } from "./money";
 
 export { dollars };
 
-export type Plan = "free" | "monthly" | "annual";
+export type Plan = "free";
 
 export type Settings = {
-  monthlyPriceCents: number;
-  annualPriceCents: number;
+  tipPriceCents: number;
+  roundPriceCents: number;
   adminEmail: string;
-  freeDailyAi: number;
-  paidDailyAi: number;
+  dailyAi: number;
 };
 
 export type Membership = {
@@ -22,8 +21,8 @@ export type Membership = {
   remainingToday: number;
   dailyLimit: number;
   isAdmin: boolean;
-  monthlyPriceCents: number;
-  annualPriceCents: number;
+  tipPriceCents: number;
+  roundPriceCents: number;
   adminEmail: string;
   usedToday: number;
   email: string;
@@ -52,11 +51,10 @@ export async function loadSettings(): Promise<Settings> {
   `;
   const row = rows[0];
   return {
-    monthlyPriceCents: row?.monthly_price_cents ?? 599,
-    annualPriceCents: row?.annual_price_cents ?? 4999,
+    tipPriceCents: row?.monthly_price_cents ?? 500,
+    roundPriceCents: row?.annual_price_cents ?? 2500,
     adminEmail: row?.admin_email ?? "kent.borgos22@gmail.com",
-    freeDailyAi: row?.free_daily_ai ?? 5,
-    paidDailyAi: row?.paid_daily_ai ?? 80,
+    dailyAi: row?.paid_daily_ai ?? row?.free_daily_ai ?? 80,
   };
 }
 
@@ -129,43 +127,26 @@ export async function ensureMember(userId: string): Promise<{ role: "member" | "
   return { role, email };
 }
 
-function paidActive(plan: Plan, status: string, expiresAt: string | null) {
-  if (status !== "active") return false;
-  if (plan !== "monthly" && plan !== "annual") return false;
-  if (!expiresAt) return true;
-  return new Date(expiresAt).getTime() > Date.now();
-}
-
 export async function loadMembership(userId: string): Promise<Membership> {
   const sql = await getSql();
   const profile = await ensureMember(userId);
   const settings = await loadSettings();
   const keys = keysStatus(await loadHouseKeys());
-  const sub = await sql<{
-    plan: Plan;
-    status: string;
-    expires_at: string | null;
-  }>`select plan, status, expires_at from subscriptions where user_id = ${userId}`;
-  const plan = sub[0]?.plan ?? "free";
-  const status = sub[0]?.status ?? "active";
-  const expiresAt = sub[0]?.expires_at ?? null;
-  const paid = paidActive(plan, status, expiresAt);
-  const dailyLimit = paid ? settings.paidDailyAi : settings.freeDailyAi;
   const used = await sql<{ count: number }>`
     select count from ai_usage where user_id = ${userId} and day = ${todayUtc()}::date
   `;
   const usedToday = used[0]?.count ?? 0;
   const emailVerified = profile.role === "admin" ? true : await isEmailVerified(userId);
   return {
-    plan: paid ? plan : "free",
-    paid,
-    status,
-    expiresAt,
-    remainingToday: Math.max(0, dailyLimit - usedToday),
-    dailyLimit,
+    plan: "free",
+    paid: false,
+    status: "active",
+    expiresAt: null,
+    remainingToday: Math.max(0, settings.dailyAi - usedToday),
+    dailyLimit: settings.dailyAi,
     isAdmin: profile.role === "admin",
-    monthlyPriceCents: settings.monthlyPriceCents,
-    annualPriceCents: settings.annualPriceCents,
+    tipPriceCents: settings.tipPriceCents,
+    roundPriceCents: settings.roundPriceCents,
     adminEmail: settings.adminEmail,
     usedToday,
     email: profile.email,
@@ -197,26 +178,6 @@ export async function consumeAiQuota(userId: string) {
   };
 }
 
-export async function startPlan(userId: string, plan: "monthly" | "annual") {
-  const sql = await getSql();
-  await ensureMember(userId);
-  const settings = await loadSettings();
-  const price = plan === "monthly" ? settings.monthlyPriceCents : settings.annualPriceCents;
-  const days = plan === "monthly" ? 30 : 365;
-  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-  await sql`
-    insert into subscriptions (user_id, plan, status, price_cents, started_at, expires_at)
-    values (${userId}, ${plan}, ${"active"}, ${price}, now(), ${expires})
-    on conflict (user_id) do update set
-      plan = ${plan},
-      status = ${"active"},
-      price_cents = ${price},
-      started_at = now(),
-      expires_at = ${expires}
-  `;
-  return loadMembership(userId);
-}
-
 export async function requireAdmin(userId: string) {
   const member = await ensureMember(userId);
   if (member.role !== "admin") {
@@ -228,10 +189,9 @@ export async function requireAdmin(userId: string) {
 export async function savePrices(
   userId: string,
   input: {
-    monthlyPriceCents: number;
-    annualPriceCents: number;
-    freeDailyAi: number;
-    paidDailyAi: number;
+    tipPriceCents: number;
+    roundPriceCents: number;
+    dailyAi: number;
     adminEmail: string;
   },
 ) {
@@ -240,10 +200,10 @@ export async function savePrices(
   const adminEmail = input.adminEmail.trim().toLowerCase();
   await sql`
     update site_settings
-    set monthly_price_cents = ${input.monthlyPriceCents},
-        annual_price_cents = ${input.annualPriceCents},
-        free_daily_ai = ${input.freeDailyAi},
-        paid_daily_ai = ${input.paidDailyAi},
+    set monthly_price_cents = ${input.tipPriceCents},
+        annual_price_cents = ${input.roundPriceCents},
+        free_daily_ai = ${input.dailyAi},
+        paid_daily_ai = ${input.dailyAi},
         admin_email = ${adminEmail},
         updated_at = now()
     where id = 1
@@ -262,18 +222,18 @@ export async function adminOverview(userId: string) {
   const keys = keysStatus(await loadHouseKeys());
   const counts = await sql<{
     members: number;
-    paid: number;
+    donations: number;
     chats_today: number;
   }>`
     select
       (select count(*)::int from profiles) as members,
-      (select count(*)::int from subscriptions where plan in ('monthly','annual') and status = 'active') as paid,
+      (select count(*)::int from payments where status = 'completed') as donations,
       (select coalesce(sum(count), 0)::int from ai_usage where day = ${todayUtc()}::date) as chats_today
   `;
   return {
     settings,
     members: counts[0]?.members ?? 0,
-    paid: counts[0]?.paid ?? 0,
+    donations: counts[0]?.donations ?? 0,
     chatsToday: counts[0]?.chats_today ?? 0,
     resendReady: keys.resendReady,
     paypalReady: keys.paypalReady,

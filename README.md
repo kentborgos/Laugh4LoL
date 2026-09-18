@@ -21,7 +21,7 @@ The living joke vault — a yellow comedy stage with a green Laugh4.LoL mark, an
 - **Donations:** one-time PayPal tips. No monthly or annual seats.
 - Sign in with Google, X, or email & password. House admin uses email and password.
 - **Admin** sets suggested donation amounts and the daily AI chat cap.
-- **/jokester** is the house key vault: paste Resend API key + from-address and PayPal client id/secret (sandbox or live). Env vars override the form if both are set.
+- **/jokester** is the house key vault. Sign in as admin, then unlock with the 40-character vault password (shown once in the Grok chat that created it). Optional override: `JOKESTER_PASSWORD`.
 
 ## House keys
 
