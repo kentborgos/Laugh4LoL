@@ -52,3 +52,10 @@ npm run build
 ```
 
 Set `DATABASE_URL` on Vercel (Neon). `XAI_API_KEY` powers Jester Bones.
+
+## Joke database (in the repo)
+
+- Unique vault Jester reads: [`public/jokes/vault.jsonl.gz`](public/jokes/vault.jsonl.gz) — **131,920** hashed bits
+- Raw open dumps (taivop, SocialGrep 1M r/Jokes, amoudgl, JokeAPI, dad dumps): [`data/jokes/`](data/jokes/)
+- Schema: [`migrations/`](migrations/)
+- House starter set: [`src/lib/jokes/seed.ts`](src/lib/jokes/seed.ts)

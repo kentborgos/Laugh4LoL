@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Build a compact, deduped joke catalog from the open datasets in /tmp/joke-raw."""
+"""Build a compact, deduped joke catalog from open datasets in data/jokes/raw."""
 
 from __future__ import annotations
 
 import csv
+import gzip
 import hashlib
 import html
 import json
 import re
 from pathlib import Path
 
-RAW = Path("/tmp/joke-raw")
-OUT = Path("/workspace/src/lib/jokes/catalog")
-PUBLIC = Path("/workspace/public/jokes")
+ROOT = Path(__file__).resolve().parents[1]
+RAW_DIRS = [ROOT / "data" / "jokes" / "raw", Path("/tmp/joke-raw")]
+OUT = Path("/workspace/src/lib/jokes/catalog") if Path("/workspace").exists() else ROOT / "src" / "lib" / "jokes" / "catalog"
+PUBLIC = Path("/workspace/public/jokes") if Path("/workspace").exists() else ROOT / "public" / "jokes"
 PART_SIZE = 2500
 REDDIT_MIN_SCORE = 40
 REDDIT_CAP = 45000
@@ -45,6 +47,25 @@ Q_A_RE = re.compile(r"^[Qq]:\s*(.+?)\s*[Aa]:\s*(.+)$", re.S)
 STOP_BODY = {"[removed]", "[deleted]", "removed", "deleted"}
 
 csv.field_size_limit(8 * 1024 * 1024)
+
+
+def raw_file(name: str) -> Path:
+    for base in RAW_DIRS:
+        for candidate in (base / name, Path(str(base / name) + ".gz")):
+            if candidate.exists() and candidate.is_file():
+                return candidate
+    raise FileNotFoundError(name)
+
+
+def open_text(path: Path):
+    if path.suffix == ".gz" or path.name.endswith(".gz"):
+        return gzip.open(path, "rt", encoding="utf-8", errors="replace")
+    return path.open(encoding="utf-8", errors="replace", newline="")
+
+
+def load_json(name: str):
+    with open_text(raw_file(name)) as f:
+        return json.load(f)
 
 
 def norm(text: str) -> str:
@@ -165,13 +186,8 @@ class Catalog:
         return True
 
 
-def load_json(path: Path):
-    with path.open(encoding="utf-8") as f:
-        return json.load(f)
-
-
 def add_official(catlg: Catalog) -> None:
-    for row in load_json(RAW / "official-jokes.json"):
+    for row in load_json("official-jokes.json"):
         setup = str(row.get("setup") or "")
         punch = str(row.get("punchline") or "")
         catlg.add(
@@ -187,7 +203,7 @@ def add_official(catlg: Catalog) -> None:
 
 
 def add_jokeapi(catlg: Catalog) -> None:
-    for row in load_json(RAW / "jokeapi-en.json"):
+    for row in load_json("jokeapi-en.json"):
         flags = row.get("flags") or {}
         if flags.get("racist") or flags.get("sexist"):
             continue
@@ -207,7 +223,7 @@ def add_jokeapi(catlg: Catalog) -> None:
 
 
 def add_dad(catlg: Catalog) -> None:
-    for row in load_json(RAW / "icanhazdadjoke.json"):
+    for row in load_json("icanhazdadjoke.json"):
         joke = str(row.get("joke") or "")
         jid = str(row.get("id") or "")
         catlg.add(
@@ -221,7 +237,7 @@ def add_dad(catlg: Catalog) -> None:
 
 
 def add_chuck(catlg: Catalog) -> None:
-    data = load_json(RAW / "chuck-search.json")
+    data = load_json("chuck-search.json")
     added = 0
     for row in data.get("result") or []:
         if added >= CHUCK_CAP:
@@ -243,7 +259,7 @@ def add_chuck(catlg: Catalog) -> None:
 
 def add_wocka(catlg: Catalog) -> None:
     adult_cats = {"adult", "dirty", "sexual", "blonde", "blond", "redneck", "bar jokes"}
-    for row in load_json(RAW / "wocka.json"):
+    for row in load_json("wocka.json"):
         title = str(row.get("title") or "")
         body = str(row.get("body") or "")
         category = str(row.get("category") or "general")
@@ -261,7 +277,7 @@ def add_wocka(catlg: Catalog) -> None:
 
 def add_stupidstuff(catlg: Catalog) -> None:
     adult_cats = {"sexual", "blonde", "men", "women"}
-    for row in load_json(RAW / "stupidstuff.json"):
+    for row in load_json("stupidstuff.json"):
         body = str(row.get("body") or "")
         category = str(row.get("category") or "general")
         try:
@@ -290,12 +306,13 @@ def add_csv_dump(
     cap: int = CSV_MAX,
     url: str = "https://github.com/amoudgl/short-jokes-dataset",
 ) -> None:
-    path = RAW / name
-    if not path.exists():
+    try:
+        path = raw_file(name)
+    except FileNotFoundError:
         print(f"  skip missing {name}")
         return
     added = 0
-    with path.open(newline="", encoding="utf-8", errors="replace") as f:
+    with open_text(path) as f:
         reader = csv.DictReader(f)
         for row in reader:
             if added >= cap:
@@ -318,7 +335,7 @@ def collect_reddit() -> list[tuple[int, str, str, str]]:
     """Return (score, text, url, source) for high-scoring reddit jokes."""
     out: list[tuple[int, str, str, str]] = []
 
-    for row in load_json(RAW / "reddit_jokes.json"):
+    for row in load_json("reddit_jokes.json"):
         try:
             score = int(row.get("score") or 0)
         except (TypeError, ValueError):
@@ -336,8 +353,8 @@ def collect_reddit() -> list[tuple[int, str, str, str]]:
         url = f"https://www.reddit.com/r/Jokes/comments/{rid}/" if rid else "https://github.com/taivop/joke-dataset"
         out.append((score, text, url, "r/Jokes (taivop 2017)"))
 
-    path = RAW / "one-million-reddit-jokes.csv"
-    with path.open(newline="", encoding="utf-8", errors="replace") as f:
+    path = raw_file("one-million-reddit-jokes.csv")
+    with open_text(path) as f:
         reader = csv.DictReader(f)
         for row in reader:
             try:
