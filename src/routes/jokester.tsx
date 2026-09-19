@@ -9,6 +9,7 @@ import {
   getAdminOverview,
   getHouseKeys,
   getJokesterLock,
+  getMembership,
   saveHouseKeys,
   testPaypalKey,
   testResendKey,
@@ -71,10 +72,21 @@ function JokesterBody() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [busy, setBusy] = useState<"save" | "resend" | "paypal" | "unlock" | "settings" | null>(null);
+  const [who, setWho] = useState<string>("");
 
   useEffect(() => {
-    void Promise.all([getJokesterLock(), getAdminOverview()])
-      .then(([lock, overview]) => {
+    void (async () => {
+      try {
+        const me = await getMembership();
+        setWho(me.email || "this account");
+        if (!me.isAdmin) {
+          setError(
+            `Signed in as ${me.email || "this account"}. House admin is ${me.adminEmail}. Sign in with that email.`,
+          );
+          setGate("forbidden");
+          return;
+        }
+        const [lock, overview] = await Promise.all([getJokesterLock(), getAdminOverview()]);
         setTip(dollars(overview.settings.tipPriceCents));
         setRound(dollars(overview.settings.roundPriceCents));
         setDailyAi(String(overview.settings.dailyAi));
@@ -88,16 +100,15 @@ function JokesterBody() {
         });
         if (lock.unlocked) {
           setGate("open");
-          return getHouseKeys();
+          applyKeys(await getHouseKeys());
+          return;
         }
         setGate("locked");
-        return null;
-      })
-      .then((data) => {
-        if (!data) return;
-        applyKeys(data);
-      })
-      .catch(() => setGate("forbidden"));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not open backstage.");
+        setGate("forbidden");
+      }
+    })();
   }, []);
 
   function applyKeys(data: Awaited<ReturnType<typeof getHouseKeys>>) {
@@ -235,8 +246,11 @@ function JokesterBody() {
   if (gate === "forbidden") {
     return (
       <div className="max-w-lg">
-        <h1 className="font-display text-4xl">Jokester is locked</h1>
-        <p className="mt-2 text-muted">House keys stay backstage. Sign in as admin.</p>
+        <h1 className="font-display text-4xl">Backstage is locked</h1>
+        <p className="mt-2 text-muted">
+          {error ?? "House keys stay backstage. Sign in with the house admin email."}
+        </p>
+        {who ? <p className="mt-2 text-sm text-muted">This tab is {who}.</p> : null}
         <Link to="/account" className="mt-4 inline-block font-medium text-logo-dark underline-offset-4 hover:underline">
           Back to your tab
         </Link>
@@ -290,8 +304,8 @@ function JokesterBody() {
         <Button type="submit" disabled={busy !== null}>
           {busy === "settings" ? "Saving…" : "Save settings"}
         </Button>
-        {error && busy !== "unlock" && gate === "locked" ? <p className="text-sm text-adult">{error}</p> : null}
-        {saved && gate === "locked" ? <p className="text-sm text-logo-dark">{saved}</p> : null}
+        {error && gate !== "locked" ? <p className="text-sm text-adult">{error}</p> : null}
+        {saved && gate !== "locked" ? <p className="text-sm text-logo-dark">{saved}</p> : null}
       </form>
 
       {gate === "locked" ? (

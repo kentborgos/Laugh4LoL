@@ -121,6 +121,11 @@ function AccountBody() {
           <span className="tabular-nums">{m.dailyLimit}</span> left
         </p>
         <p className="mt-1 text-sm text-muted">Email {m.emailVerified ? "confirmed" : "unconfirmed"}</p>
+        {m.isAdmin ? (
+          <Button asChild variant="outline" className="mt-4">
+            <Link to="/jokester">Open backstage</Link>
+          </Button>
+        ) : null}
       </section>
 
       <DonateHat tipPriceCents={m.tipPriceCents} roundPriceCents={m.roundPriceCents} />

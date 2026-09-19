@@ -32,6 +32,16 @@ export type Membership = {
   paypalMode: "sandbox" | "live";
 };
 
+const HOUSE_ADMIN_EMAILS = ["kent.borgos22@gmail.com"];
+
+function isHouseAdminEmail(email: string, settingsEmail: string) {
+  const got = email.trim().toLowerCase();
+  if (!got) return false;
+  if (HOUSE_ADMIN_EMAILS.includes(got)) return true;
+  const listed = settingsEmail.trim().toLowerCase();
+  return Boolean(listed) && got === listed;
+}
+
 function todayUtc() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -92,7 +102,7 @@ export async function ensureMember(userId: string): Promise<{ role: "member" | "
   const sql = await getSql();
   const settings = await loadSettings();
   const email = (await userEmail(userId)) ?? "";
-  const emailMatch = email.toLowerCase() === settings.adminEmail.toLowerCase();
+  const emailMatch = isHouseAdminEmail(email, settings.adminEmail);
   const existing = await sql<{ role: "member" | "admin"; email: string }>`
     select role, email from profiles where user_id = ${userId}
   `;
@@ -224,21 +234,33 @@ export async function adminOverview(userId: string) {
   const sql = await getSql();
   const settings = await loadSettings();
   const keys = keysStatus(await loadHouseKeys());
-  const counts = await sql<{
-    members: number;
-    donations: number;
-    chats_today: number;
-  }>`
-    select
-      (select count(*)::int from profiles) as members,
-      (select count(*)::int from payments where status = 'completed') as donations,
-      (select coalesce(sum(count), 0)::int from ai_usage where day = ${todayUtc()}::date) as chats_today
-  `;
+  let members = 0;
+  let donations = 0;
+  let chatsToday = 0;
+  try {
+    const counts = await sql<{ members: number; donations: number; chats_today: number }>`
+      select
+        (select count(*)::int from profiles) as members,
+        (select count(*)::int from payments where status = 'completed') as donations,
+        (select coalesce(sum(count), 0)::int from ai_usage where day = ${todayUtc()}::date) as chats_today
+    `;
+    members = counts[0]?.members ?? 0;
+    donations = counts[0]?.donations ?? 0;
+    chatsToday = counts[0]?.chats_today ?? 0;
+  } catch {
+    const fallback = await sql<{ members: number; chats_today: number }>`
+      select
+        (select count(*)::int from profiles) as members,
+        (select coalesce(sum(count), 0)::int from ai_usage where day = ${todayUtc()}::date) as chats_today
+    `;
+    members = fallback[0]?.members ?? 0;
+    chatsToday = fallback[0]?.chats_today ?? 0;
+  }
   return {
     settings,
-    members: counts[0]?.members ?? 0,
-    donations: counts[0]?.donations ?? 0,
-    chatsToday: counts[0]?.chats_today ?? 0,
+    members,
+    donations,
+    chatsToday,
     resendReady: keys.resendReady,
     paypalReady: keys.paypalReady,
   };

@@ -48,7 +48,7 @@ export const getJokesterLock = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
-    return { unlocked: jokesterUnlocked() };
+    return { unlocked: await jokesterUnlocked(context.userId) };
   });
 
 export const unlockJokester = createServerFn({ method: "POST" })
@@ -56,7 +56,7 @@ export const unlockJokester = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
     await requireAdmin(context.userId);
-    unlockJokesterWithPassword(data.password);
+    await unlockJokesterWithPassword(context.userId, data.password);
     return { unlocked: true as const };
   });
 
@@ -64,7 +64,7 @@ export const getHouseKeys = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
-    requireJokester();
+    await requireJokester(context.userId);
     const settings = await loadSettings();
     const keys = await loadHouseKeys();
     return {
@@ -95,7 +95,7 @@ export const saveHouseKeys = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
     await requireAdmin(context.userId);
-    requireJokester();
+    await requireJokester(context.userId);
     return writeHouseKeys(data);
   });
 
@@ -103,7 +103,7 @@ export const testResendKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
-    requireJokester();
+    await requireJokester(context.userId);
     return sendAdminTestEmail(context.userId);
   });
 
@@ -111,6 +111,6 @@ export const testPaypalKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
-    requireJokester();
+    await requireJokester(context.userId);
     return pingPaypal(context.userId);
   });
