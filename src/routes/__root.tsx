@@ -1,7 +1,10 @@
 import { createRootRoute, HeadContent, Outlet, Scripts, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useEffect } from "react";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { CookieBanner } from "@/components/cookie-banner";
+import { useCookieConsent } from "@/lib/jokes/cookie-consent";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Laugh4.LoL";
@@ -42,7 +45,16 @@ export const Route = createRootRoute({
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
     ],
   }),
-  component: () => (
+  component: RootDocument,
+});
+
+function RootDocument() {
+  const hydrateCookies = useCookieConsent((s) => s.hydrate);
+  useEffect(() => {
+    hydrateCookies();
+  }, [hydrateCookies]);
+
+  return (
     <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>
         <HeadContent />
@@ -52,8 +64,9 @@ export const Route = createRootRoute({
         <AuthProvider>
           <Outlet />
         </AuthProvider>
+        <CookieBanner />
         <Scripts />
       </body>
     </html>
-  ),
-});
+  );
+}

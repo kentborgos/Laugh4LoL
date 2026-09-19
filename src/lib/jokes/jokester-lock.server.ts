@@ -59,6 +59,8 @@ function cookieUnlocked() {
 
 function writeUnlockCookie() {
   try {
+    const pref = getCookie("laugh_cookie_pref") ?? "";
+    if (pref && pref !== "all") return;
     setCookie(COOKIE, tokenForHash(expectedHash()), {
       path: "/",
       httpOnly: true,

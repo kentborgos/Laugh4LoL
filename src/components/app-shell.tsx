@@ -5,7 +5,9 @@ import { Logo } from "@/components/logo";
 import { DonatePaypalButton } from "@/components/donate-button";
 import { Button } from "@/components/ui/button";
 import { AgeGate } from "@/components/age-gate";
+import { CookieSettingsButton } from "@/components/cookie-banner";
 import { useAge } from "@/lib/jokes/age-store";
+import { useCookieConsent } from "@/lib/jokes/cookie-consent";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { PAYPAL_DONATE_EMAIL } from "@/lib/jokes/donate";
@@ -42,11 +44,13 @@ function AuthSlot() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { adult, ready, hydrate, clear } = useAge();
+  const hydrateCookies = useCookieConsent((s) => s.hydrate);
   const [gateOpen, setGateOpen] = useState(false);
 
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    hydrateCookies();
+  }, [hydrate, hydrateCookies]);
 
   return (
     <div className="stage-spot min-h-dvh max-w-full overflow-x-clip text-ink">
@@ -130,6 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <p className="text-xs">
             Donations to <span className="font-medium text-ink">{PAYPAL_DONATE_EMAIL}</span>
           </p>
+          <CookieSettingsButton />
         </div>
       </footer>
       <AgeGate open={gateOpen} onOpenChange={setGateOpen} />
