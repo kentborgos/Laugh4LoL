@@ -239,7 +239,27 @@ export const verifyGuestAge = createServerFn({ method: "POST" })
       })
       .parse(input) satisfies AgeInput,
   )
-  .handler(async ({ data }) => verifyAge(data));
+  .handler(async ({ data }) => {
+    const result = await verifyAge(data);
+    if (result.ok) {
+      try {
+        const { getSessionUser } = await import("@/lib/auth/verify.server");
+        const user = await getSessionUser();
+        if (user) {
+          const { saveMemberAge } = await import("./members.server");
+          await saveMemberAge(user.id, {
+            adult: result.adult,
+            idType: data.idType,
+            idNumber: data.idNumber,
+            jurisdiction: data.jurisdiction,
+          });
+        }
+      } catch {
+        /* guests stay token-only */
+      }
+    }
+    return result;
+  });
 
 export const crawlNow = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ force: z.boolean().optional() }).parse(input ?? {}))

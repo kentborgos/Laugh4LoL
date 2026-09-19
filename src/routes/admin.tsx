@@ -15,6 +15,7 @@ import {
   updateSitePrices,
 } from "@/lib/jokes/billing";
 import { dollars, parseDollars } from "@/lib/jokes/money";
+import { HouseMembers } from "@/components/house-members";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -251,7 +252,7 @@ function AdminBody() {
   }
 
   return (
-    <div className="grid max-w-xl gap-8">
+    <div className="grid max-w-3xl gap-8">
       <header>
         <h1 className="font-display text-4xl sm:text-5xl">Backstage</h1>
         <p className="mt-2 text-muted text-pretty">
@@ -293,6 +294,8 @@ function AdminBody() {
         {error ? <p className="text-sm text-adult">{error}</p> : null}
         {saved ? <p className="text-sm text-logo-dark">{saved}</p> : null}
       </form>
+
+      <HouseMembers />
 
       <form className="grid gap-4 rounded-[var(--radius-xl)] border border-border bg-surface p-5" onSubmit={onSubmit}>
         <h2 className="font-display text-2xl">House keys</h2>

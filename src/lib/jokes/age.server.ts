@@ -72,7 +72,8 @@ export async function verifyAge(input: AgeInput) {
   const idError = validateId(input);
   if (idError) return { ok: false as const, error: idError };
 
-  // ID is format-checked in memory and discarded. Never persisted.
+  // ID is format-checked in memory. Signed-in members may keep it on their
+  // profile so house backstage can edit the 18+ file. Guests: discarded.
   if (age < 18) {
     const sql = await getSql();
     const joke = await sql<{ setup: string; punchline: string }>`
