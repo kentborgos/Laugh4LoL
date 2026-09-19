@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /jokester
+Disallow: /Jokester
+Disallow: /admin
+Disallow: /Admin

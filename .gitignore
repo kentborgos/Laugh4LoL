@@ -14,5 +14,7 @@ artifacts
 .grok/*
 !.grok/app-env.json
 src/lib/jokes/catalog/part-*.jsonl
+data/house-keys.local.json
+vercel.env
 __pycache__/
 *.pyc

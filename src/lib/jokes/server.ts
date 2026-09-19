@@ -191,6 +191,19 @@ export const chatWithJester = createServerFn({ method: "POST" })
     await seedIfEmpty();
     const quota = await consumeAiQuota(context.userId);
     if (!quota.allowed) {
+      if (quota.reason === "unverified") {
+        const line =
+          "Hold up — I don't take tabs from ghosts. Confirm the Resend letter we sent, then come back and I'll riff.";
+        return {
+          ok: false as const,
+          code: "unverified" as const,
+          text: line,
+          adult: isAdult(data.token),
+          remaining: quota.membership.remainingToday,
+          limit: quota.membership.dailyLimit,
+          plan: quota.membership.plan,
+        };
+      }
       const line = `That's today's set — ${quota.membership.dailyLimit} chats with Jester Bones a day. Vault and Hit me stay open. The room is free — a PayPal tip is optional.`;
       return {
         ok: false as const,

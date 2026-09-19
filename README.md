@@ -17,9 +17,11 @@ The living joke vault — a yellow comedy stage with a green Laugh4.LoL mark, an
 ## Accounts
 
 - **Every account is free.** Vault browsing and Hit me stay free. Sign-in unlocks chats with Jester Bones.
-- **Email confirm:** optional Resend letter for email/password accounts.
+- **Email confirm:** Resend letter required before AI chats. House admin is auto-verified.
+  API (TanStack Start handlers, same job as Next.js Route Handlers):
+  `GET /api/resend`, `POST /api/resend/send` (signed in), `POST /api/resend/confirm` `{ token }`.
 - **Donations:** optional PayPal donate button to **kent.borgos22@gmail.com**. No monthly or annual seats. Guests can tip without signing in.
-- Sign in with Google, X, or email & password. House admin uses email and password.
+- Sign in with email and password. Resend sends a confirm letter before AI chats. House admin is auto-verified.
 - **Admin** sets suggested donation amounts and the daily AI chat cap.
 - **/jokester** is the house key vault. Sign in as admin, then unlock with the 40-character vault password (shown once in the Grok chat that created it). Optional override: `JOKESTER_PASSWORD`.
 

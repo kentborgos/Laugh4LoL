@@ -20,6 +20,9 @@ import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ApiCrawlRouteImport } from './routes/api/crawl'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiPaypalWebhookRouteImport } from './routes/api/paypal/webhook'
+import { Route as ApiResendIndexRouteImport } from './routes/api/resend/index'
+import { Route as ApiResendConfirmRouteImport } from './routes/api/resend/confirm'
+import { Route as ApiResendSendRouteImport } from './routes/api/resend/send'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +79,21 @@ const ApiPaypalWebhookRoute = ApiPaypalWebhookRouteImport.update({
   path: '/api/paypal/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiResendIndexRoute = ApiResendIndexRouteImport.update({
+  id: '/api/resend/',
+  path: '/api/resend/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResendConfirmRoute = ApiResendConfirmRouteImport.update({
+  id: '/api/resend/confirm',
+  path: '/api/resend/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResendSendRoute = ApiResendSendRouteImport.update({
+  id: '/api/resend/send',
+  path: '/api/resend/send',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +107,9 @@ export interface FileRoutesByFullPath {
   '/api/crawl': typeof ApiCrawlRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/paypal/webhook': typeof ApiPaypalWebhookRoute
+  '/api/resend/confirm': typeof ApiResendConfirmRoute
+  '/api/resend/send': typeof ApiResendSendRoute
+  '/api/resend/': typeof ApiResendIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +123,9 @@ export interface FileRoutesByTo {
   '/api/crawl': typeof ApiCrawlRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/paypal/webhook': typeof ApiPaypalWebhookRoute
+  '/api/resend/confirm': typeof ApiResendConfirmRoute
+  '/api/resend/send': typeof ApiResendSendRoute
+  '/api/resend': typeof ApiResendIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +140,9 @@ export interface FileRoutesById {
   '/api/crawl': typeof ApiCrawlRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/paypal/webhook': typeof ApiPaypalWebhookRoute
+  '/api/resend/confirm': typeof ApiResendConfirmRoute
+  '/api/resend/send': typeof ApiResendSendRoute
+  '/api/resend/': typeof ApiResendIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +158,9 @@ export interface FileRouteTypes {
     | '/api/crawl'
     | '/api/auth/$'
     | '/api/paypal/webhook'
+    | '/api/resend/confirm'
+    | '/api/resend/send'
+    | '/api/resend/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +174,9 @@ export interface FileRouteTypes {
     | '/api/crawl'
     | '/api/auth/$'
     | '/api/paypal/webhook'
+    | '/api/resend/confirm'
+    | '/api/resend/send'
+    | '/api/resend'
   id:
     | '__root__'
     | '/'
@@ -157,6 +190,9 @@ export interface FileRouteTypes {
     | '/api/crawl'
     | '/api/auth/$'
     | '/api/paypal/webhook'
+    | '/api/resend/confirm'
+    | '/api/resend/send'
+    | '/api/resend/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +207,9 @@ export interface RootRouteChildren {
   ApiCrawlRoute: typeof ApiCrawlRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPaypalWebhookRoute: typeof ApiPaypalWebhookRoute
+  ApiResendConfirmRoute: typeof ApiResendConfirmRoute
+  ApiResendSendRoute: typeof ApiResendSendRoute
+  ApiResendIndexRoute: typeof ApiResendIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +291,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPaypalWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/resend/': {
+      id: '/api/resend/'
+      path: '/api/resend'
+      fullPath: '/api/resend/'
+      preLoaderRoute: typeof ApiResendIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/resend/confirm': {
+      id: '/api/resend/confirm'
+      path: '/api/resend/confirm'
+      fullPath: '/api/resend/confirm'
+      preLoaderRoute: typeof ApiResendConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/resend/send': {
+      id: '/api/resend/send'
+      path: '/api/resend/send'
+      fullPath: '/api/resend/send'
+      preLoaderRoute: typeof ApiResendSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +327,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrawlRoute: ApiCrawlRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPaypalWebhookRoute: ApiPaypalWebhookRoute,
+  ApiResendConfirmRoute: ApiResendConfirmRoute,
+  ApiResendSendRoute: ApiResendSendRoute,
+  ApiResendIndexRoute: ApiResendIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

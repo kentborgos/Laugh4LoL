@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { authClient, authEnabled } from "@/lib/auth/client";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getPublicPricing } from "@/lib/jokes/billing";
+import { getMembership, getPublicPricing } from "@/lib/jokes/billing";
 import { requestVerificationEmail } from "@/lib/jokes/email";
 import { DonatePaypalButton } from "@/components/donate-button";
 
@@ -28,6 +28,17 @@ function Login() {
     void getPublicPricing().then(setPricing).catch(() => setPricing(null));
   }, []);
 
+  async function sendToVerify() {
+    try {
+      await authClient.getSession();
+      const verify = await requestVerificationEmail();
+      const token = verify.previewUrl ? new URL(verify.previewUrl).searchParams.get("token") : null;
+      await navigate({ to: "/verify-email", search: token ? { token } : {} });
+    } catch {
+      await navigate({ to: "/verify-email", search: {} });
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!authEnabled) return;
@@ -49,14 +60,7 @@ function Login() {
           );
           return;
         }
-        try {
-          await authClient.getSession();
-          const verify = await requestVerificationEmail();
-          const token = verify.previewUrl ? new URL(verify.previewUrl).searchParams.get("token") : null;
-          await navigate({ to: "/verify-email", search: token ? { token } : {} });
-        } catch {
-          await navigate({ to: "/verify-email", search: {} });
-        }
+        await sendToVerify();
         return;
       }
       const res = await authClient.signIn.email({ email, password });
@@ -67,6 +71,17 @@ function Login() {
             ? "This page isn't on a trusted address for sign-in. Open laugh4.lol or the Grok preview and try again."
             : msg,
         );
+        return;
+      }
+      await authClient.getSession();
+      try {
+        const member = await getMembership();
+        if (!member.emailVerified) {
+          await sendToVerify();
+          return;
+        }
+      } catch {
+        await sendToVerify();
         return;
       }
       await navigate({ to: "/" });
@@ -94,29 +109,13 @@ function Login() {
         <h1 className="font-display text-3xl">Pull up a chair</h1>
         <p className="mt-2 text-sm text-muted text-pretty">
           Free tab: {pricing ? `${pricing.dailyAi} AI chats a day` : "a few chats a day"} with Jester Bones.
-          Sign in with Google, X, or email. The whole club is free. PayPal donations are optional — they go to
-          kent.borgos22@gmail.com.
+          Sign in with email and password. Resend sends a confirm letter so the chair is yours. The club is free.
+          PayPal donations are optional — they go to kent.borgos22@gmail.com.
         </p>
 
         {authEnabled ? (
           <>
-            <div className="mt-5 grid gap-2">
-              {GROK_PROVIDERS.map((p) => (
-                <Button
-                  key={p.providerId}
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => signIn(p.providerId, { callbackURL: "/" })}
-                >
-                  Continue with {p.label}
-                </Button>
-              ))}
-            </div>
-            <p className="my-4 text-center text-xs font-medium tracking-wide text-muted uppercase">
-              or email & password
-            </p>
-            <div className="mb-3 grid grid-cols-2 gap-2">
+            <div className="mt-5 mb-3 grid grid-cols-2 gap-2">
               <Button type="button" variant={mode === "in" ? "ink" : "outline"} onClick={() => setMode("in")}>
                 Sign in
               </Button>

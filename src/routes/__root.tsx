@@ -1,4 +1,4 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, Outlet, Scripts, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
@@ -13,7 +13,14 @@ const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export const Route = createRootRoute({
-  beforeLoad: async () => ({ sessionUser: await fetchSessionUser() }),
+  beforeLoad: async ({ location }) => {
+    const path = location.pathname;
+    const lower = path.toLowerCase();
+    if ((lower === "/jokester" || lower === "/admin") && path !== "/jokester") {
+      throw redirect({ to: "/jokester" });
+    }
+    return { sessionUser: await fetchSessionUser() };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },

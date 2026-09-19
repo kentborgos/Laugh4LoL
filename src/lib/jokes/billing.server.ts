@@ -160,8 +160,11 @@ export async function loadMembership(userId: string): Promise<Membership> {
 export async function consumeAiQuota(userId: string) {
   const sql = await getSql();
   const membership = await loadMembership(userId);
+  if (!membership.emailVerified) {
+    return { allowed: false as const, reason: "unverified" as const, membership };
+  }
   if (membership.remainingToday <= 0) {
-    return { allowed: false as const, membership };
+    return { allowed: false as const, reason: "limit" as const, membership };
   }
   await sql`
     insert into ai_usage (user_id, day, count)
@@ -170,6 +173,7 @@ export async function consumeAiQuota(userId: string) {
   `;
   return {
     allowed: true as const,
+    reason: "ok" as const,
     membership: {
       ...membership,
       usedToday: membership.usedToday + 1,

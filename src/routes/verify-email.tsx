@@ -81,7 +81,8 @@ function VerifyEmailPage() {
         {state === "idle" || state === "expired" || state === "missing" || state === "error" ? (
           <>
             <p className="text-muted text-pretty">
-              We send a Resend letter so nobody else can sit in your chair. The Stage stays free.
+              We send a Resend letter so nobody else can sit in your chair. Confirm it before Jester Bones
+              takes the tab. The Stage vault and Hit me stay free.
             </p>
             {isPending ? null : user ? (
               <Button onClick={() => void resend()} disabled={busy}>

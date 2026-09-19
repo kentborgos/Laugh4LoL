@@ -8,7 +8,6 @@ import { AgeGate } from "@/components/age-gate";
 import { useAge } from "@/lib/jokes/age-store";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { getMembership } from "@/lib/jokes/billing";
 import { PAYPAL_DONATE_EMAIL } from "@/lib/jokes/donate";
 import { cn } from "@/lib/utils";
 
@@ -21,33 +20,12 @@ const NAV = [
 
 function AuthSlot() {
   const { user, isPending } = useCurrentUserState();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (isPending || !user) {
-      setIsAdmin(false);
-      return;
-    }
-    void getMembership()
-      .then((m) => setIsAdmin(m.isAdmin))
-      .catch(() => setIsAdmin(false));
-  }, [isPending, user]);
 
   if (isPending) return <div className="size-8 shrink-0 animate-pulse rounded-full bg-ink/10" />;
   if (user) {
     return (
-      <div className="flex min-w-0 items-center gap-2">
-        {isAdmin ? (
-          <Link
-            to="/jokester"
-            className="hidden h-9 items-center rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm font-medium sm:inline-flex"
-          >
-            Jokester
-          </Link>
-        ) : null}
-        <div className="max-w-[10rem] min-w-0 truncate text-ink">
-          <UserButton />
-        </div>
+      <div className="max-w-[10rem] min-w-0 truncate text-ink">
+        <UserButton />
       </div>
     );
   }

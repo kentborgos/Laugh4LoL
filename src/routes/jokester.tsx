@@ -17,7 +17,15 @@ import {
 } from "@/lib/jokes/billing";
 import { dollars, parseDollars } from "@/lib/jokes/money";
 
-export const Route = createFileRoute("/jokester")({ component: JokesterPage });
+export const Route = createFileRoute("/jokester")({
+  head: () => ({
+    meta: [
+      { name: "robots", content: "noindex, nofollow" },
+      { title: "Laugh4.LoL" },
+    ],
+  }),
+  component: JokesterPage,
+});
 
 function JokesterPage() {
   const { user, isPending } = useCurrentUserState();
@@ -244,7 +252,7 @@ function JokesterBody() {
     <div className="grid max-w-xl gap-8">
       <header>
         <p className="text-[0.7rem] font-medium tracking-wide text-muted uppercase">Backstage</p>
-        <h1 className="font-display text-4xl sm:text-5xl">/jokester</h1>
+        <h1 className="font-display text-4xl sm:text-5xl">Backstage</h1>
         <p className="mt-2 text-muted text-pretty">
           House admin lives here. Suggested PayPal amounts feed the hat. Donations go to
           kent.borgos22@gmail.com. Resend keys sit behind the vault password.

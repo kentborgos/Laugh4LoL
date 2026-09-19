@@ -20,19 +20,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Production build
+        run: npm run build
 
       - name: Deploy production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
-            echo "No VERCEL_TOKEN secret — skipping Action deploy."
-            echo "Connect the GitHub repo in Vercel: Project → Settings → Git."
-            echo "Private repo: GitHub → Settings → Applications → Vercel → enable Laugh4LoL."
-            echo "Or add secret VERCEL_TOKEN from https://vercel.com/account/tokens"
+            echo "::warning::Compiled OK, but no VERCEL_TOKEN so this Action cannot upload. Connect kentborgos/Laugh4LoL in Vercel Git settings, or add secret VERCEL_TOKEN."
             exit 0
           fi
           npm install -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          vercel build --prod --token="$VERCEL_TOKEN"
           vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

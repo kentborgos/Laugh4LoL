@@ -100,10 +100,11 @@ function AccountBody() {
           <p className="mt-2 text-sm text-pretty">
             {m.email ? (
               <>
-                Optional, but nice — confirm <span className="font-medium">{m.email}</span> via Resend.
+                Jester Bones needs a Resend confirm for <span className="font-medium">{m.email}</span> before
+                AI chats. Vault and Hit me stay open.
               </>
             ) : (
-              "Add an email on this account, then we'll send a Resend letter."
+              "This tab has no email. Open a free account with an address we can write to."
             )}
           </p>
           <Button className="mt-4" disabled={busy} onClick={() => void verify()}>
@@ -120,13 +121,6 @@ function AccountBody() {
           <span className="tabular-nums">{m.dailyLimit}</span> left
         </p>
         <p className="mt-1 text-sm text-muted">Email {m.emailVerified ? "confirmed" : "unconfirmed"}</p>
-        {m.isAdmin ? (
-          <p className="mt-3">
-            <Link to="/jokester" className="font-medium text-logo-dark underline-offset-4 hover:underline">
-              Open /jokester backstage
-            </Link>
-          </p>
-        ) : null}
       </section>
 
       <DonateHat tipPriceCents={m.tipPriceCents} roundPriceCents={m.roundPriceCents} />

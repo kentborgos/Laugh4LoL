@@ -71,6 +71,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     if (!user) return;
+    if (membership && !membership.emailVerified) return;
     const next: ChatTurn[] = [...messages, { role: "user", content: trimmed }];
     setMessages(next);
     setInput("");
@@ -117,6 +118,7 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
   }
 
   const signedOut = !isPending && !user;
+  const unverified = Boolean(membership && !membership.emailVerified);
   const capped = Boolean(membership && membership.remainingToday <= 0);
 
   return (
@@ -211,6 +213,15 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
             </p>
             <Button asChild>
               <Link to="/login">Sign in</Link>
+            </Button>
+          </div>
+        ) : unverified ? (
+          <div className="flex flex-col gap-2 border-t border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted text-pretty">
+              Confirm the Resend letter first. Vault and Hit me stay open.
+            </p>
+            <Button asChild>
+              <Link to="/verify-email">Confirm email</Link>
             </Button>
           </div>
         ) : capped ? (

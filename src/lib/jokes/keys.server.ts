@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { getSql } from "@/lib/db";
 
 export type HouseKeys = {
@@ -9,6 +11,8 @@ export type HouseKeys = {
   paypalWebhookId: string;
 };
 
+const LOCAL_KEYS_PATH = join(process.cwd(), "data", "house-keys.local.json");
+
 function first(...vals: Array<string | undefined | null>) {
   for (const v of vals) {
     const t = v?.trim();
@@ -19,6 +23,37 @@ function first(...vals: Array<string | undefined | null>) {
 
 function modeOf(value: string | undefined): "sandbox" | "live" {
   return value?.trim().toLowerCase() === "live" ? "live" : "sandbox";
+}
+
+function onVercel() {
+  return Boolean(process.env.VERCEL);
+}
+
+function readLocalKeys(): Partial<HouseKeys> {
+  if (onVercel()) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(LOCAL_KEYS_PATH, "utf8")) as Record<string, unknown>;
+    return {
+      resendApiKey: typeof parsed.resendApiKey === "string" ? parsed.resendApiKey : "",
+      resendFromEmail: typeof parsed.resendFromEmail === "string" ? parsed.resendFromEmail : "",
+      paypalClientId: typeof parsed.paypalClientId === "string" ? parsed.paypalClientId : "",
+      paypalClientSecret: typeof parsed.paypalClientSecret === "string" ? parsed.paypalClientSecret : "",
+      paypalMode: parsed.paypalMode === "live" ? "live" : parsed.paypalMode === "sandbox" ? "sandbox" : undefined,
+      paypalWebhookId: typeof parsed.paypalWebhookId === "string" ? parsed.paypalWebhookId : "",
+    };
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalKeys(keys: HouseKeys) {
+  if (onVercel()) return;
+  try {
+    mkdirSync(join(process.cwd(), "data"), { recursive: true });
+    writeFileSync(LOCAL_KEYS_PATH, `${JSON.stringify(keys, null, 2)}\n`, { mode: 0o600 });
+  } catch {
+    /* preview disk may be read-only — DB still holds the values */
+  }
 }
 
 export async function loadHouseKeys(): Promise<HouseKeys> {
@@ -36,13 +71,19 @@ export async function loadHouseKeys(): Promise<HouseKeys> {
     from site_settings where id = 1
   `;
   const row = rows[0];
+  const local = readLocalKeys();
   return {
-    resendApiKey: first(process.env.RESEND_API_KEY, row?.resend_api_key),
-    resendFromEmail: first(process.env.RESEND_FROM_EMAIL, row?.resend_from_email, "Laugh4.LoL <onboarding@resend.dev>"),
-    paypalClientId: first(process.env.PAYPAL_CLIENT_ID, row?.paypal_client_id),
-    paypalClientSecret: first(process.env.PAYPAL_CLIENT_SECRET, row?.paypal_client_secret),
-    paypalMode: modeOf(first(process.env.PAYPAL_MODE, row?.paypal_mode)),
-    paypalWebhookId: first(process.env.PAYPAL_WEBHOOK_ID, row?.paypal_webhook_id),
+    resendApiKey: first(process.env.RESEND_API_KEY, local.resendApiKey, row?.resend_api_key),
+    resendFromEmail: first(
+      process.env.RESEND_FROM_EMAIL,
+      local.resendFromEmail,
+      row?.resend_from_email,
+      "Laugh4.LoL <onboarding@resend.dev>",
+    ),
+    paypalClientId: first(process.env.PAYPAL_CLIENT_ID, local.paypalClientId, row?.paypal_client_id),
+    paypalClientSecret: first(process.env.PAYPAL_CLIENT_SECRET, local.paypalClientSecret, row?.paypal_client_secret),
+    paypalMode: modeOf(first(process.env.PAYPAL_MODE, local.paypalMode, row?.paypal_mode)),
+    paypalWebhookId: first(process.env.PAYPAL_WEBHOOK_ID, local.paypalWebhookId, row?.paypal_webhook_id),
   };
 }
 
@@ -91,7 +132,9 @@ export async function writeHouseKeys(input: {
         updated_at = now()
     where id = 1
   `;
-  return keysStatus(await loadHouseKeys());
+  const next = await loadHouseKeys();
+  writeLocalKeys(next);
+  return keysStatus(next);
 }
 
 function keepOr(next: string | undefined, current: string) {

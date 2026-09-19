@@ -17,7 +17,7 @@ const globalRef = globalThis as typeof globalThis & { __laughPaypalToken__?: Tok
 async function paypalToken() {
   const keys = await loadHouseKeys();
   if (!keys.paypalClientId || !keys.paypalClientSecret) {
-    throw new Error("PayPal house keys aren't set. Admin pastes them at /jokester.");
+    throw new Error("PayPal house keys aren't set.");
   }
   const fingerprint = `${keys.paypalMode}:${keys.paypalClientId}`;
   const cached = globalRef.__laughPaypalToken__;
