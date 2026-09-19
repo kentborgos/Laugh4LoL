@@ -25,10 +25,10 @@ export async function sendVerificationEmail(userId: string) {
   if (!email) throw new Error("This tab has no email on file.");
   if (email === settings.adminEmail.toLowerCase()) {
     await markEmailVerified(userId);
-    return { sent: true, already: true, previewUrl: null as string | null };
+    return { sent: true, already: true, previewUrl: null as string | null, error: null as string | null };
   }
   if (await isEmailVerified(userId)) {
-    return { sent: true, already: true, previewUrl: null as string | null };
+    return { sent: true, already: true, previewUrl: null as string | null, error: null as string | null };
   }
 
   const sql = await getSql();
@@ -39,7 +39,12 @@ export async function sendVerificationEmail(userId: string) {
     limit 1
   `;
   if (recent[0] && Date.now() - new Date(recent[0].created_at).getTime() < 45_000) {
-    throw new Error("Give that last letter a minute to land, then try again.");
+    return {
+      sent: false,
+      already: false,
+      previewUrl: null as string | null,
+      error: "Give that last letter a minute to land, then try again.",
+    };
   }
 
   const token = randomBytes(32).toString("hex");
@@ -50,30 +55,50 @@ export async function sendVerificationEmail(userId: string) {
   `;
   const previewUrl = `${publicOrigin()}/verify-email?token=${token}`;
   const keys = await loadHouseKeys();
-  if (!keys.resendApiKey) {
-    return { sent: false, already: false, previewUrl };
+  const apiKey = keys.resendApiKey.trim();
+  if (!apiKey) {
+    return {
+      sent: false,
+      already: false,
+      previewUrl,
+      error: "Resend isn't keyed yet. Use the confirm link on this page, or paste the API key in house backstage.",
+    };
   }
 
   const html = verificationHtml(previewUrl);
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${keys.resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: keys.resendFromEmail,
-      to: [email],
-      subject: "Confirm your Laugh4.LoL tab",
-      html,
-      text: `Jester Bones here. Confirm this email so we know the tab is yours:\n${previewUrl}\n\nWe Could All Use A Little Laugh!`,
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(resendError(body) || "Resend wouldn't take the letter. Check the house keys.");
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: keys.resendFromEmail.trim() || "Laugh4.LoL <onboarding@resend.dev>",
+        to: [email],
+        subject: "Confirm your Laugh4.LoL tab",
+        html,
+        text: `Jester Bones here. Confirm this email so we know the tab is yours:\n${previewUrl}\n\nWe Could All Use A Little Laugh!`,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return {
+        sent: false,
+        already: false,
+        previewUrl,
+        error: resendError(body) || "Resend wouldn't take the letter. Check the house keys and From address.",
+      };
+    }
+  } catch (err) {
+    return {
+      sent: false,
+      already: false,
+      previewUrl,
+      error: err instanceof Error ? err.message : "Could not reach Resend.",
+    };
   }
-  return { sent: true, already: false, previewUrl: null as string | null };
+  return { sent: true, already: false, previewUrl: null as string | null, error: null as string | null };
 }
 
 export async function confirmEmailToken(token: string) {

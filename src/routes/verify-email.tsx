@@ -1,21 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { confirmVerification, requestVerificationEmail } from "@/lib/jokes/email";
 
-type Search = { token?: string };
+type Search = { token?: string; sent?: string };
 
 export const Route = createFileRoute("/verify-email")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     token: typeof s.token === "string" ? s.token : undefined,
+    sent: typeof s.sent === "string" ? s.sent : undefined,
   }),
   component: VerifyEmailPage,
 });
 
 function VerifyEmailPage() {
-  const { token } = Route.useSearch();
+  const { token, sent } = Route.useSearch();
   const { user, isPending } = useCurrentUserState();
   const [state, setState] = useState<"idle" | "checking" | "ok" | "missing" | "expired" | "error">(
     token ? "checking" : "idle",
@@ -23,6 +24,7 @@ function VerifyEmailPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const autoSent = useRef(false);
 
   useEffect(() => {
     if (!token) return;
@@ -40,6 +42,12 @@ function VerifyEmailPage() {
     };
   }, [token]);
 
+  useEffect(() => {
+    if (token || sent || isPending || !user || autoSent.current) return;
+    autoSent.current = true;
+    void resend();
+  }, [token, sent, isPending, user]);
+
   async function resend() {
     setBusy(true);
     setNote(null);
@@ -51,9 +59,11 @@ function VerifyEmailPage() {
       }
       if (res.previewUrl) {
         setPreviewUrl(res.previewUrl);
-        setNote("Resend keys aren't set, so here's the confirm link for this preview.");
+        setNote(res.error || (res.sent ? "Letter's on the way. Check your inbox." : "Resend keys aren't set, so here's the confirm link."));
+      } else if (res.error) {
+        setNote(res.error);
       } else {
-        setNote("Letter's on the way. Check your inbox.");
+        setNote("Letter's on the way. Check your inbox — including spam.");
       }
     } catch (err) {
       setNote(err instanceof Error ? err.message : "Could not send that letter.");
@@ -81,8 +91,9 @@ function VerifyEmailPage() {
         {state === "idle" || state === "expired" || state === "missing" || state === "error" ? (
           <>
             <p className="text-muted text-pretty">
-              We send a Resend letter so nobody else can sit in your chair. Confirm it before Jester Bones
-              takes the tab. The Stage vault and Hit me stay free.
+              {sent
+                ? "A Resend letter just left the house. Confirm it before Jester Bones takes the tab. Check spam if it's shy."
+                : "We send a Resend letter so nobody else can sit in your chair. Confirm it before Jester Bones takes the tab. The Stage vault and Hit me stay free."}
             </p>
             {isPending ? null : user ? (
               <Button onClick={() => void resend()} disabled={busy}>

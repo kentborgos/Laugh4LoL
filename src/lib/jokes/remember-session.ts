@@ -18,3 +18,7 @@ export async function rememberCurrentSession() {
   rememberSessionToken(token);
   return res;
 }
+
+export function rememberAuthResponseToken(token: string | null | undefined) {
+  rememberSessionToken(token);
+}

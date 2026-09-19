@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { authClient, authEnabled } from "@/lib/auth/client";
-import { rememberCurrentSession } from "@/lib/jokes/remember-session";
+import { rememberAuthResponseToken, rememberCurrentSession } from "@/lib/jokes/remember-session";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,13 +30,26 @@ function Login() {
   }, []);
 
   async function sendToVerify() {
-    try {
-      await authClient.getSession();
-      const verify = await requestVerificationEmail();
-      const token = verify.previewUrl ? new URL(verify.previewUrl).searchParams.get("token") : null;
-      await navigate({ to: "/verify-email", search: token ? { token } : {} });
-    } catch {
-      await navigate({ to: "/verify-email", search: {} });
+    for (let i = 0; i < 4; i += 1) {
+      try {
+        await rememberCurrentSession();
+        const verify = await requestVerificationEmail();
+        const token = verify.previewUrl ? new URL(verify.previewUrl).searchParams.get("token") : null;
+        await navigate({
+          to: "/verify-email",
+          search: verify.sent ? { sent: "1" } : token && !verify.sent ? { token } : {},
+        });
+        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "Unauthorized" && i < 3) {
+          await new Promise((r) => setTimeout(r, 250 * (i + 1)));
+          continue;
+        }
+        setError(msg || "Could not send the confirm letter.");
+        await navigate({ to: "/verify-email", search: {} });
+        return;
+      }
     }
   }
 
@@ -61,6 +74,7 @@ function Login() {
           );
           return;
         }
+        rememberAuthResponseToken(res.data?.token);
         await rememberCurrentSession();
         await sendToVerify();
         return;
@@ -75,6 +89,7 @@ function Login() {
         );
         return;
       }
+      rememberAuthResponseToken(res.data?.token);
       await rememberCurrentSession();
       try {
         const member = await getMembership();
