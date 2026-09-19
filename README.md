@@ -23,17 +23,17 @@ The living joke vault — a yellow comedy stage with a green Laugh4.LoL mark, an
 - **Donations:** optional PayPal donate button to **kent.borgos22@gmail.com**. No monthly or annual seats. Guests can tip without signing in.
 - Sign in with email and password. Resend sends a confirm letter before AI chats. House admin is auto-verified.
 - **Admin** sets suggested donation amounts and the daily AI chat cap.
-- **/jokester** is the house key vault. Sign in as admin, then unlock with the 40-character vault password (shown once in the Grok chat that created it). Optional override: `JOKESTER_PASSWORD`.
+- House backstage is password-only (no account). It is not linked from the public app. Optional override: `JOKESTER_PASSWORD`.
 
 ## House keys
 
-Paste credentials at `/jokester`, or set these on Vercel:
+Paste credentials in house backstage, or set these on Vercel:
 
 - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 - `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MODE` (`sandbox` or `live`)
 - optional `PAYPAL_WEBHOOK_ID` (webhook URL: `/api/paypal/webhook`)
 
-Never commit secrets. Empty `/jokester` fields keep the previous values.
+Never commit secrets. Empty backstage fields keep the previous values.
 
 ## Age check
 

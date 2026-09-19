@@ -1,13 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import {
-  adminOverview,
-  loadMembership,
-  loadSettings,
-  requireAdmin,
-  savePrices,
-} from "./billing.server";
+import { adminOverview, loadMembership, loadSettings, savePrices } from "./billing.server";
+import { houseMiddleware } from "./house-middleware";
 import { keysStatus, loadHouseKeys, mask, writeHouseKeys } from "./keys.server";
 import { sendAdminTestEmail } from "./email.server";
 import { pingPaypal } from "./paypal.server";
@@ -27,8 +22,11 @@ export const getMembership = createServerFn({ method: "GET" })
   .handler(async ({ context }) => loadMembership(context.userId));
 
 export const getAdminOverview = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => adminOverview(context.userId));
+  .middleware([houseMiddleware])
+  .handler(async ({ context }) => {
+    requireJokester(context.houseToken);
+    return adminOverview();
+  });
 
 export const updateSitePrices = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
@@ -41,30 +39,25 @@ export const updateSitePrices = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .middleware([authMiddleware])
-  .handler(async ({ context, data }) => savePrices(context.userId, data));
+  .middleware([houseMiddleware])
+  .handler(async ({ context, data }) => {
+    requireJokester(context.houseToken);
+    return savePrices(data);
+  });
 
 export const getJokesterLock = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    await requireAdmin(context.userId);
-    return { unlocked: await jokesterUnlocked(context.userId) };
-  });
+  .middleware([houseMiddleware])
+  .handler(async ({ context }) => ({ unlocked: jokesterUnlocked(context.houseToken) }));
 
 export const unlockJokester = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ password: z.string().min(1).max(80) }).parse(input))
-  .middleware([authMiddleware])
-  .handler(async ({ context, data }) => {
-    await requireAdmin(context.userId);
-    await unlockJokesterWithPassword(context.userId, data.password);
-    return { unlocked: true as const };
-  });
+  .middleware([houseMiddleware])
+  .handler(async ({ data }) => unlockJokesterWithPassword(data.password));
 
 export const getHouseKeys = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
+  .middleware([houseMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context.userId);
-    await requireJokester(context.userId);
+    requireJokester(context.houseToken);
     const settings = await loadSettings();
     const keys = await loadHouseKeys();
     return {
@@ -92,25 +85,22 @@ export const saveHouseKeys = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .middleware([authMiddleware])
+  .middleware([houseMiddleware])
   .handler(async ({ context, data }) => {
-    await requireAdmin(context.userId);
-    await requireJokester(context.userId);
+    requireJokester(context.houseToken);
     return writeHouseKeys(data);
   });
 
 export const testResendKey = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
+  .middleware([houseMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context.userId);
-    await requireJokester(context.userId);
-    return sendAdminTestEmail(context.userId);
+    requireJokester(context.houseToken);
+    return sendAdminTestEmail();
   });
 
 export const testPaypalKey = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
+  .middleware([houseMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context.userId);
-    await requireJokester(context.userId);
-    return pingPaypal(context.userId);
+    requireJokester(context.houseToken);
+    return pingPaypal();
   });

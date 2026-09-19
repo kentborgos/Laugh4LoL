@@ -1,13 +1,11 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getCookie, setCookie } from "@tanstack/react-start/server";
-import { getSql } from "@/lib/db";
 
 /** SHA-256 of the house vault password. Plaintext is never stored. */
 const BAKED_SHA256 = "1e335b1b63e530ce7898f4aabd8a65d36c538099f0a97d170cede96f6ad2f8d7";
 const COOKIE = "laugh_jokester";
 const MAX_TRIES = 8;
 const WINDOW_MS = 15 * 60 * 1000;
-const UNLOCK_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Bucket = { n: number; reset: number };
 const globalRef = globalThis as typeof globalThis & { __jokesterTries__?: Map<string, Bucket> };
@@ -29,7 +27,7 @@ function safeEqHex(a: string, b: string) {
   return timingSafeEqual(left, right);
 }
 
-function tokenForHash(hash: string) {
+export function houseTokenForHash(hash: string) {
   return createHmac("sha256", hash).update("laugh4lol-jokester").digest("hex");
 }
 
@@ -47,21 +45,33 @@ function throttle(key: string) {
   cur.n += 1;
 }
 
-function cookieUnlocked() {
+function tokenOk(token: string | undefined) {
+  if (!token || token.length !== 64) return false;
+  return safeEqHex(token, houseTokenForHash(expectedHash()));
+}
+
+export function jokesterUnlocked(houseToken?: string) {
+  if (tokenOk(houseToken)) return true;
   try {
-    const cookie = getCookie(COOKIE) ?? "";
-    if (!cookie || cookie.length !== 64) return false;
-    return safeEqHex(cookie, tokenForHash(expectedHash()));
+    return tokenOk(getCookie(COOKIE) ?? "");
   } catch {
     return false;
   }
 }
 
-function writeUnlockCookie() {
+export function requireJokester(houseToken?: string) {
+  if (!jokesterUnlocked(houseToken)) throw new Error("House is locked.");
+}
+
+export function unlockJokesterWithPassword(password: string) {
+  throttle("global");
+  const got = sha256hex(password);
+  if (!safeEqHex(got, expectedHash())) {
+    throw new Error("Wrong password.");
+  }
+  const token = houseTokenForHash(got);
   try {
-    const pref = getCookie("laugh_cookie_pref") ?? "";
-    if (pref && pref !== "all") return;
-    setCookie(COOKIE, tokenForHash(expectedHash()), {
+    setCookie(COOKIE, token, {
       path: "/",
       httpOnly: true,
       sameSite: "lax",
@@ -69,37 +79,7 @@ function writeUnlockCookie() {
       secure: process.env.NODE_ENV === "production",
     });
   } catch {
-    /* preview iframe may ignore Set-Cookie — DB row still counts */
+    /* preview may ignore Set-Cookie — client keeps the token */
   }
-}
-
-export async function jokesterUnlocked(userId: string) {
-  if (cookieUnlocked()) return true;
-  try {
-    const sql = await getSql();
-    const rows = await sql<{ jokester_unlocked_at: string | Date | null }>`
-      select jokester_unlocked_at from profiles where user_id = ${userId}
-    `;
-    const at = rows[0]?.jokester_unlocked_at;
-    if (!at) return false;
-    const ts = at instanceof Date ? at.getTime() : Date.parse(String(at));
-    return Number.isFinite(ts) && Date.now() - ts < UNLOCK_MS;
-  } catch {
-    return false;
-  }
-}
-
-export async function requireJokester(userId: string) {
-  if (!(await jokesterUnlocked(userId))) throw new Error("Jokester is locked.");
-}
-
-export async function unlockJokesterWithPassword(userId: string, password: string) {
-  throttle(userId);
-  const got = sha256hex(password);
-  if (!safeEqHex(got, expectedHash())) {
-    throw new Error("Wrong jokester password.");
-  }
-  const sql = await getSql();
-  await sql`update profiles set jokester_unlocked_at = now() where user_id = ${userId}`;
-  writeUnlockCookie();
+  return { unlocked: true as const, token };
 }

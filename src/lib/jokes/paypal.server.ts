@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getSql } from "@/lib/db";
-import { ensureMember, loadMembership, requireAdmin } from "./billing.server";
+import { ensureMember, loadMembership } from "./billing.server";
 import { loadHouseKeys } from "./keys.server";
 import { dollars } from "./money";
 import { publicOrigin } from "./origin.server";
@@ -66,8 +66,7 @@ async function paypalFetch(path: string, init: RequestInit = {}) {
   return json;
 }
 
-export async function pingPaypal(userId: string) {
-  await requireAdmin(userId);
+export async function pingPaypal() {
   const { keys } = await paypalToken();
   return { ok: true as const, mode: keys.paypalMode };
 }

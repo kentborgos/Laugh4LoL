@@ -8,10 +8,10 @@
     }
   ],
   "redirects": [
-    { "source": "/Jokester", "destination": "/jokester", "permanent": false },
-    { "source": "/JOKESTER", "destination": "/jokester", "permanent": false },
-    { "source": "/Admin", "destination": "/jokester", "permanent": false },
-    { "source": "/ADMIN", "destination": "/jokester", "permanent": false },
-    { "source": "/admin", "destination": "/jokester", "permanent": false }
+    { "source": "/Jokester", "destination": "/admin", "permanent": false },
+    { "source": "/JOKESTER", "destination": "/admin", "permanent": false },
+    { "source": "/jokester", "destination": "/admin", "permanent": false },
+    { "source": "/Admin", "destination": "/admin", "permanent": false },
+    { "source": "/ADMIN", "destination": "/admin", "permanent": false }
   ]
 }

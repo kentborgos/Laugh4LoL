@@ -200,16 +200,12 @@ export async function requireAdmin(userId: string) {
   return member;
 }
 
-export async function savePrices(
-  userId: string,
-  input: {
-    tipPriceCents: number;
-    roundPriceCents: number;
-    dailyAi: number;
-    adminEmail: string;
-  },
-) {
-  await requireAdmin(userId);
+export async function savePrices(input: {
+  tipPriceCents: number;
+  roundPriceCents: number;
+  dailyAi: number;
+  adminEmail: string;
+}) {
   const sql = await getSql();
   const adminEmail = input.adminEmail.trim().toLowerCase();
   await sql`
@@ -229,8 +225,7 @@ export async function savePrices(
   return loadSettings();
 }
 
-export async function adminOverview(userId: string) {
-  await requireAdmin(userId);
+export async function adminOverview() {
   const sql = await getSql();
   const settings = await loadSettings();
   const keys = keysStatus(await loadHouseKeys());

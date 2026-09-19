@@ -5,7 +5,6 @@ import {
   isEmailVerified,
   loadSettings,
   markEmailVerified,
-  requireAdmin,
   userEmail,
 } from "./billing.server";
 import { loadHouseKeys } from "./keys.server";
@@ -102,11 +101,11 @@ export async function confirmEmailToken(token: string) {
   return { ok: true as const, already: false, email: row.email };
 }
 
-export async function sendAdminTestEmail(userId: string) {
-  const member = await requireAdmin(userId);
+export async function sendAdminTestEmail() {
   const keys = await loadHouseKeys();
   if (!keys.resendApiKey) throw new Error("Paste a Resend API key first.");
-  const to = member.email || (await userEmail(userId)) || "";
+  const settings = await loadSettings();
+  const to = settings.adminEmail.trim();
   if (!to) throw new Error("Admin email is empty.");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

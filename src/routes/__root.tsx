@@ -19,8 +19,8 @@ export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
     const path = location.pathname;
     const lower = path.toLowerCase();
-    if ((lower === "/jokester" || lower === "/admin") && path !== "/jokester") {
-      throw redirect({ to: "/jokester" });
+    if ((lower === "/jokester" || lower === "/admin") && path !== "/admin") {
+      throw redirect({ to: "/admin" });
     }
     return { sessionUser: await fetchSessionUser() };
   },
