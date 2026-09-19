@@ -6,6 +6,7 @@ import { DonatePaypalButton } from "@/components/donate-button";
 import { Textarea } from "@/components/ui/input";
 import { chatWithJester, getVaultStats, randomJoke } from "@/lib/jokes/server";
 import { getMembership, getPublicPricing } from "@/lib/jokes/billing";
+import { rememberCurrentSession } from "@/lib/jokes/remember-session";
 import { useAge } from "@/lib/jokes/age-store";
 import { AgeGate } from "@/components/age-gate";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -67,6 +68,17 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
+  function applyReply(next: ChatTurn[], res: Awaited<ReturnType<typeof chatWithJester>>) {
+    setMessages([...next, { role: "assistant", content: res.text }]);
+    if ("remaining" in res) {
+      setMembership((m) =>
+        m
+          ? { ...m, remainingToday: res.remaining, dailyLimit: res.limit, plan: res.plan as Membership["plan"] }
+          : m,
+      );
+    }
+  }
+
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
@@ -78,22 +90,25 @@ export function ChatStage({ initialStats }: { initialStats?: VaultStats | null }
     setBusy(true);
     try {
       const res = await chatWithJester({ data: { messages: next, token: token ?? undefined } });
-      setMessages([...next, { role: "assistant", content: res.text }]);
-      if ("remaining" in res) {
-        setMembership((m) =>
-          m
-            ? { ...m, remainingToday: res.remaining, dailyLimit: res.limit, plan: res.plan as Membership["plan"] }
-            : m,
-        );
-      }
+      applyReply(next, res);
     } catch (err) {
       const unauthorized = err instanceof Error && err.message === "Unauthorized";
+      if (unauthorized && user) {
+        try {
+          await rememberCurrentSession();
+          const res = await chatWithJester({ data: { messages: next, token: token ?? undefined } });
+          applyReply(next, res);
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
       setMessages([
         ...next,
         {
           role: "assistant",
           content: unauthorized
-            ? "Sign in first — the Stage is free. Vault jokes are still on the house."
+            ? "I lost your tab for a second. Refresh, or sign in again — the Stage is free."
             : "The mic just ate a cigar ash. Say that again?",
         },
       ]);

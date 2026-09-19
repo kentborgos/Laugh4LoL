@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { CookieBanner } from "@/components/cookie-banner";
+import { SessionBearerBridge } from "@/components/session-bearer-bridge";
 import { useCookieConsent } from "@/lib/jokes/cookie-consent";
 import appCss from "../styles.css?url";
 
@@ -62,6 +63,7 @@ function RootDocument() {
       <body className="bg-bg font-sans text-ink">
         <PreviewHostBridge />
         <AuthProvider>
+          <SessionBearerBridge />
           <Outlet />
         </AuthProvider>
         <CookieBanner />

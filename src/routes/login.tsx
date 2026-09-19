@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { authClient, authEnabled } from "@/lib/auth/client";
+import { rememberCurrentSession } from "@/lib/jokes/remember-session";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ function Login() {
           );
           return;
         }
+        await rememberCurrentSession();
         await sendToVerify();
         return;
       }
@@ -73,7 +75,7 @@ function Login() {
         );
         return;
       }
-      await authClient.getSession();
+      await rememberCurrentSession();
       try {
         const member = await getMembership();
         if (!member.emailVerified) {
