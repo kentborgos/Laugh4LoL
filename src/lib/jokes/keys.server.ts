@@ -72,7 +72,7 @@ export async function loadHouseKeys(): Promise<HouseKeys> {
   `;
   const row = rows[0];
   const local = readLocalKeys();
-  return {
+  const keys: HouseKeys = {
     resendApiKey: first(process.env.RESEND_API_KEY, local.resendApiKey, row?.resend_api_key),
     resendFromEmail: first(
       process.env.RESEND_FROM_EMAIL,
@@ -85,6 +85,50 @@ export async function loadHouseKeys(): Promise<HouseKeys> {
     paypalMode: modeOf(first(process.env.PAYPAL_MODE, local.paypalMode, row?.paypal_mode)),
     paypalWebhookId: first(process.env.PAYPAL_WEBHOOK_ID, local.paypalWebhookId, row?.paypal_webhook_id),
   };
+  await persistMissingKeysToDb(keys, row);
+  return keys;
+}
+
+const persistRef = globalThis as typeof globalThis & { __laughKeysPersisted__?: boolean };
+
+async function persistMissingKeysToDb(
+  keys: HouseKeys,
+  row:
+    | {
+        resend_api_key: string;
+        resend_from_email: string;
+        paypal_client_id: string;
+        paypal_client_secret: string;
+        paypal_mode: string;
+        paypal_webhook_id: string;
+      }
+    | undefined,
+) {
+  const dbEmpty =
+    !row?.resend_api_key?.trim() ||
+    !row?.resend_from_email?.trim() ||
+    !row?.paypal_client_id?.trim() ||
+    !row?.paypal_client_secret?.trim() ||
+    !row?.paypal_webhook_id?.trim();
+  if (!dbEmpty || persistRef.__laughKeysPersisted__) return;
+  if (!keys.resendApiKey && !keys.paypalClientId) return;
+  persistRef.__laughKeysPersisted__ = true;
+  try {
+    const sql = await getSql();
+    await sql`
+      update site_settings
+      set resend_api_key = case when coalesce(resend_api_key, '') = '' then ${keys.resendApiKey} else resend_api_key end,
+          resend_from_email = case when coalesce(resend_from_email, '') = '' then ${keys.resendFromEmail} else resend_from_email end,
+          paypal_client_id = case when coalesce(paypal_client_id, '') = '' then ${keys.paypalClientId} else paypal_client_id end,
+          paypal_client_secret = case when coalesce(paypal_client_secret, '') = '' then ${keys.paypalClientSecret} else paypal_client_secret end,
+          paypal_webhook_id = case when coalesce(paypal_webhook_id, '') = '' then ${keys.paypalWebhookId} else paypal_webhook_id end,
+          paypal_mode = case when coalesce(paypal_mode, '') = '' then ${keys.paypalMode} else paypal_mode end,
+          updated_at = now()
+      where id = 1
+    `;
+  } catch {
+    persistRef.__laughKeysPersisted__ = false;
+  }
 }
 
 export function keysStatus(keys: HouseKeys) {
