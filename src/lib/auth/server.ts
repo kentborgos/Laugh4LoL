@@ -102,11 +102,30 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://localhost:8080",
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
+  "http://0.0.0.0:8080",
+];
+// Public club hosts + Vercel previews. When BETTER_AUTH_URL is set, the stock
+// list used to drop these and email/password returned "Invalid origin".
+const APP_PUBLIC_ORIGINS: string[] = [
+  "https://laugh4.lol",
+  "https://www.laugh4.lol",
+  "https://laugh4lol.vercel.app",
+  "https://*.vercel.app",
 ];
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
-  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
+  allowedHosts: [
+    ...previewAllowedHosts,
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "0.0.0.0",
+    "laugh4.lol",
+    "www.laugh4.lol",
+    "laugh4lol.vercel.app",
+    "*.vercel.app",
+  ],
   // `auto` → trust both http:// and https:// expansions of allowedHosts
   // (preview is https; local dev is http).
   protocol: "auto" as const,
@@ -115,15 +134,54 @@ const baseURL = explicitBaseURL ?? {
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
-  : [
-      // Host wildcards (matched against Origin's host)
-      ...previewAllowedHosts,
-      // Full-origin wildcards (matched against Origin)
-      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-      ...LOCAL_DEV_ORIGINS,
-    ];
+const STATIC_TRUSTED_ORIGINS: string[] = [
+  ...(explicitBaseURL ? [explicitBaseURL.replace(/\/+$/, "")] : []),
+  ...LOCAL_DEV_ORIGINS,
+  ...previewAllowedHosts,
+  ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+  ...APP_PUBLIC_ORIGINS,
+];
+
+function hostnameOnly(host: string) {
+  const h = host.trim().toLowerCase();
+  if (h.startsWith("[")) {
+    const end = h.indexOf("]");
+    return end >= 0 ? h.slice(0, end + 1) : h;
+  }
+  return h.split(":")[0] || h;
+}
+
+function isClubHost(hostname: string) {
+  const host = hostnameOnly(hostname);
+  if (host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "0.0.0.0") return true;
+  if (host === "laugh4.lol" || host === "www.laugh4.lol" || host === "laugh4lol.vercel.app") return true;
+  if (host.endsWith(".vercel.app")) return true;
+  if (host === "grok-sandbox.com" || host.endsWith(".grok-sandbox.com")) return true;
+  if (host.includes(".preview.")) return true;
+  return false;
+}
+
+async function trustedOrigins(request?: Request) {
+  const origins = [...STATIC_TRUSTED_ORIGINS];
+  if (!request) return origins;
+  for (const raw of [request.headers.get("origin"), request.headers.get("referer")]) {
+    if (!raw) continue;
+    try {
+      const url = new URL(raw);
+      if (isClubHost(url.hostname)) origins.push(url.origin);
+    } catch {
+      /* ignore unparseable */
+    }
+  }
+  const forwarded = (request.headers.get("x-forwarded-host") || request.headers.get("host") || "")
+    .split(",")[0]
+    ?.trim();
+  const proto = (request.headers.get("x-forwarded-proto") || "https").split(",")[0]?.trim() || "https";
+  if (forwarded && isClubHost(forwarded)) {
+    origins.push(`${proto}://${forwarded}`);
+  }
+  return origins;
+}
 
 const databaseUrl = env("DATABASE_URL");
 

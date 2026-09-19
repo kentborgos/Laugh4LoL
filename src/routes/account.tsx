@@ -121,12 +121,9 @@ function AccountBody() {
         </p>
         <p className="mt-1 text-sm text-muted">Email {m.emailVerified ? "confirmed" : "unconfirmed"}</p>
         {m.isAdmin ? (
-          <p className="mt-3 flex flex-wrap gap-4">
-            <Link to="/admin" className="font-medium text-logo-dark underline-offset-4 hover:underline">
-              Open admin
-            </Link>
+          <p className="mt-3">
             <Link to="/jokester" className="font-medium text-logo-dark underline-offset-4 hover:underline">
-              House keys (/jokester)
+              Open /jokester backstage
             </Link>
           </p>
         ) : null}

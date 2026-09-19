@@ -41,7 +41,12 @@ function Login() {
           name: name.trim() || email.split("@")[0] || "Guest",
         });
         if (res.error) {
-          setError(res.error.message || "Could not open that tab.");
+          const msg = res.error.message || "Could not open that tab.";
+          setError(
+            /invalid origin/i.test(msg)
+              ? "This page isn't on a trusted address for sign-up. Open laugh4.lol or the Grok preview and try again."
+              : msg,
+          );
           return;
         }
         try {
@@ -56,7 +61,12 @@ function Login() {
       }
       const res = await authClient.signIn.email({ email, password });
       if (res.error) {
-        setError(res.error.message || "Email or password didn't land.");
+        const msg = res.error.message || "Email or password didn't land.";
+        setError(
+          /invalid origin/i.test(msg)
+            ? "This page isn't on a trusted address for sign-in. Open laugh4.lol or the Grok preview and try again."
+            : msg,
+        );
         return;
       }
       await navigate({ to: "/" });
@@ -84,7 +94,8 @@ function Login() {
         <h1 className="font-display text-3xl">Pull up a chair</h1>
         <p className="mt-2 text-sm text-muted text-pretty">
           Free tab: {pricing ? `${pricing.dailyAi} AI chats a day` : "a few chats a day"} with Jester Bones.
-          The whole club is free. PayPal donations are optional — they go to kent.borgos22@gmail.com.
+          Sign in with Google, X, or email. The whole club is free. PayPal donations are optional — they go to
+          kent.borgos22@gmail.com.
         </p>
 
         {authEnabled ? (
